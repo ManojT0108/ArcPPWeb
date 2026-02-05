@@ -4,7 +4,7 @@ const peptideSchema = new mongoose.Schema({
   sequence: String,
   endIndex: Number,
   modification: String,
-  protein_id: String,
+  protein_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Protein' },
   qValue: Number,
   startIndex: Number
 });

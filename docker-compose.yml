@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  # Redis Service
+  redis:
+    image: redis:7-alpine
+    container_name: arcpp-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - arcpp-network
+
+  # Backend Server
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: arcpp-server
+    ports:
+      - "5001:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    env_file:
+      - ./server/.env
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - arcpp-network
+
+  # Frontend Client (Nginx)
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: arcpp-client
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - server
+    restart: unless-stopped
+    networks:
+      - arcpp-network
+
+networks:
+  arcpp-network:
+    driver: bridge
+
+volumes:
+  redis-data:
