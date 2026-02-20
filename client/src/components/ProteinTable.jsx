@@ -16,6 +16,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import DownloadIcon from '@mui/icons-material/Download';
+import { useTheme } from '../ThemeContext';
 
 export default function ProteinTable({
   tableSpeciesFilter,
@@ -34,30 +35,54 @@ export default function ProteinTable({
   selectedDatasets,
   selectedOverlaps,
 }) {
+  const { isDark } = useTheme();
+
+  const borderColor = isDark ? 'rgba(255,255,255,0.08)' : '#e8eef7';
+  const rowBorder = isDark ? 'rgba(255,255,255,0.06)' : '#eff3fa';
+  const headerColor = isDark ? '#89a2c0' : '#5b6a83';
+  const mutedColor = isDark ? '#89a2c0' : '#5b6a83';
+  const textColor = isDark ? '#e6edf7' : '#0b1b3a';
+  const descColor = isDark ? '#94a3b8' : '#475569';
+
+  const muiInputSx = isDark ? {
+    '& .MuiOutlinedInput-root': {
+      background: '#17223a',
+      color: '#e6edf7',
+      '& fieldset': { borderColor: 'rgba(255,255,255,0.15)' },
+      '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.3)' },
+      '&.Mui-focused fieldset': { borderColor: '#0ea5e9' },
+    },
+    '& .MuiInputBase-input': { color: '#e6edf7' },
+    '& .MuiInputBase-input::placeholder': { color: '#89a2c0', opacity: 1 },
+    '& .MuiInputAdornment-root .MuiSvgIcon-root': { color: '#89a2c0' },
+  } : {};
+
+  const muiSelectSx = isDark ? {
+    background: '#17223a',
+    color: '#e6edf7',
+    '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.15)' },
+    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.3)' },
+    '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#0ea5e9' },
+    '& .MuiSvgIcon-root': { color: '#89a2c0' },
+  } : {};
+
+  const muiLabelSx = isDark ? {
+    color: '#89a2c0',
+    '&.Mui-focused': { color: '#0ea5e9' },
+  } : {};
+
   const downloadCSV = () => {
     const headers = ['HVO ID', 'UniProt ID', 'PSMs', 'Coverage (%)', 'Datasets', 'Modifications', 'Description'];
     const csvRows = [headers.join(',')];
-
     processedRows.forEach(r => {
       const datasets = Array.isArray(r.datasets) ? r.datasets.join('; ') : '';
       const modifications = Array.isArray(r.modifications) ? r.modifications.join('; ') : '';
       const description = (r.description || '').replace(/,/g, ';');
-      csvRows.push([
-        r.hvoId || '',
-        r.uniProtId || '',
-        r.psmCount ?? '',
-        Number.isFinite(r.coveragePercent) ? r.coveragePercent.toFixed(1) : '',
-        datasets,
-        modifications,
-        description
-      ].join(','));
+      csvRows.push([r.hvoId || '', r.uniProtId || '', r.psmCount ?? '', Number.isFinite(r.coveragePercent) ? r.coveragePercent.toFixed(1) : '', datasets, modifications, description].join(','));
     });
-
-    const csvString = csvRows.join('\n');
-    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
+    link.setAttribute('href', URL.createObjectURL(blob));
     link.setAttribute('download', `proteins_${tableSpeciesFilter.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
@@ -66,13 +91,40 @@ export default function ProteinTable({
   };
 
   return (
-    <div style={{ maxWidth: 1150, margin: '0 auto 40px auto', background: 'white', borderRadius: 16, boxShadow: '0 8px 24px rgba(2,12,27,.08)', border: '1px solid #e8eef7', overflow: 'hidden' }}>
-      <div style={{ display: 'flex', alignItems: 'center', padding: '16px 18px', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ fontWeight: 700, color: '#0b1b3a', display: 'flex', alignItems: 'center', gap: 12 }}>
+    <div style={{
+      maxWidth: 1150,
+      margin: '0 auto 40px auto',
+      background: isDark ? 'rgba(15,22,42,0.95)' : 'white',
+      borderRadius: 16,
+      boxShadow: isDark ? '0 8px 24px rgba(0,0,0,0.4)' : '0 8px 24px rgba(2,12,27,0.08)',
+      border: `1px solid ${borderColor}`,
+      overflow: 'hidden',
+    }}>
+      {/* Table header bar */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        padding: '16px 18px',
+        gap: 12,
+        flexWrap: 'wrap',
+        borderBottom: `1px solid ${borderColor}`,
+        background: isDark ? 'rgba(12,18,34,0.6)' : 'transparent',
+      }}>
+        <div style={{ fontWeight: 700, color: textColor, display: 'flex', alignItems: 'center', gap: 12 }}>
           <span>Proteins</span>
           <FormControl size="small" sx={{ minWidth: 200 }}>
-            <InputLabel>Filter by Species</InputLabel>
-            <Select value={tableSpeciesFilter} label="Filter by Species" onChange={(e) => setTableSpeciesFilter(e.target.value)}>
+            <InputLabel sx={muiLabelSx}>Filter by Species</InputLabel>
+            <Select
+              value={tableSpeciesFilter}
+              label="Filter by Species"
+              onChange={(e) => setTableSpeciesFilter(e.target.value)}
+              sx={muiSelectSx}
+              MenuProps={isDark ? {
+                PaperProps: {
+                  sx: { background: '#17223a', color: '#e6edf7', '& .MuiMenuItem-root:hover': { background: 'rgba(255,255,255,0.08)' } }
+                }
+              } : {}}
+            >
               <MenuItem value="Haloferax volcanii">Haloferax volcanii</MenuItem>
             </Select>
           </FormControl>
@@ -83,8 +135,9 @@ export default function ProteinTable({
             onChange={(e) => setTableSearch(e.target.value)}
             placeholder="Search all proteins..."
             size="small"
+            sx={muiInputSx}
             InputProps={{
-              startAdornment: (<InputAdornment position="start"><SearchIcon /></InputAdornment>),
+              startAdornment: (<InputAdornment position="start"><SearchIcon sx={isDark ? { color: '#89a2c0' } : {}} /></InputAdornment>),
               endAdornment: tableLoading && tableSearch ? (
                 <InputAdornment position="end">
                   <div style={{ fontSize: 11, color: '#0ea5e9', fontWeight: 600 }}>Searching...</div>
@@ -98,13 +151,28 @@ export default function ProteinTable({
             startIcon={<DownloadIcon />}
             onClick={downloadCSV}
             disabled={processedRows.length === 0}
+            sx={isDark ? {
+              color: '#89a2c0',
+              borderColor: 'rgba(255,255,255,0.2)',
+              '&:hover': { borderColor: '#0ea5e9', color: '#0ea5e9', background: 'rgba(14,165,233,0.08)' },
+            } : {}}
           >
             CSV
           </Button>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '120px 120px 80px 100px 180px 180px 1fr', gap: 12, padding: '10px 18px', color: '#5b6a83', borderTop: '1px solid #eef2f9', borderBottom: '1px solid #eef2f9', fontWeight: 600 }}>
+      {/* Column headers */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '120px 120px 80px 100px 180px 180px 1fr',
+        gap: 12,
+        padding: '10px 18px',
+        color: headerColor,
+        borderBottom: `1px solid ${rowBorder}`,
+        fontWeight: 600,
+        background: isDark ? 'rgba(12,18,34,0.4)' : 'transparent',
+      }}>
         <div style={{ cursor: 'pointer' }} onClick={() => onSort('hvoId')}>HVO {sortIcon('hvoId')}</div>
         <div style={{ cursor: 'pointer' }} onClick={() => onSort('uniProtId')}>UniProt ID {sortIcon('uniProtId')}</div>
         <div style={{ cursor: 'pointer' }} onClick={() => onSort('psmCount')}>PSMs {sortIcon('psmCount')}</div>
@@ -115,17 +183,16 @@ export default function ProteinTable({
       </div>
 
       {tableLoading ? (
-        <div style={{ padding: 18, color: '#5b6a83' }}>Loading...</div>
+        <div style={{ padding: 18, color: mutedColor }}>Loading...</div>
       ) : tableError ? (
         <div style={{ padding: 18, color: '#b91c1c' }}>{tableError}</div>
       ) : processedRows.length === 0 ? (
-        <div style={{ padding: 18, color: '#5b6a83' }}>No rows.</div>
+        <div style={{ padding: 18, color: mutedColor }}>No rows.</div>
       ) : (
         processedRows.map((r) => {
           const datasets = Array.isArray(r.datasets) && r.datasets.length ? r.datasets : [];
           const displayDatasets = datasets.slice(0, 2);
           const moreDatasetCount = datasets.length - 2;
-
           const modifications = Array.isArray(r.modifications) && r.modifications.length ? r.modifications : [];
           const displayMods = modifications.slice(0, 2);
           const moreModCount = modifications.length - 2;
@@ -138,75 +205,45 @@ export default function ProteinTable({
                 gridTemplateColumns: '120px 120px 80px 100px 180px 180px 1fr',
                 gap: 12,
                 padding: '12px 18px',
-                borderBottom: '1px solid #eff3fa',
+                borderBottom: `1px solid ${rowBorder}`,
                 alignItems: 'center',
                 transition: 'all 0.2s ease',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                color: textColor,
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'linear-gradient(90deg, #f0f9ff 0%, #e0f2fe 100%)';
-                e.currentTarget.style.transform = 'scale(1.01)';
-                e.currentTarget.style.boxShadow = '0 2px 8px rgba(14, 165, 233, 0.15)';
+                e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.03)' : '#f8fafc';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.transform = 'scale(1)';
-                e.currentTarget.style.boxShadow = 'none';
               }}
             >
               <div>
-                <Link
-                  to={`/plot/${r.hvoId}`}
-                  style={{ color: '#3366ff', textDecoration: 'none', fontWeight: 500 }}
-                >
+                <Link to={`/plot/${r.hvoId}`} style={{ color: isDark ? '#60a5fa' : '#3366ff', textDecoration: 'none', fontWeight: 500 }}>
                   {r.hvoId}
                 </Link>
               </div>
-              <div style={{ fontSize: 14, color: '#5b6a83' }}>{r.uniProtId || '\u2014'}</div>
-              <div style={{ fontSize: 14 }}>{r.psmCount ?? '\u2014'}</div>
-              <div style={{ fontSize: 14 }}>
+              <div style={{ fontSize: 14, color: mutedColor }}>{r.uniProtId || '\u2014'}</div>
+              <div style={{ fontSize: 14, color: textColor }}>{r.psmCount ?? '\u2014'}</div>
+              <div style={{ fontSize: 14, color: textColor }}>
                 {Number.isFinite(r.coveragePercent) ? `${r.coveragePercent.toFixed(1)}%` : '\u2014'}
               </div>
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
                 {datasets.length === 0 ? (
-                  <span style={{ fontSize: 14, color: '#94a3b8' }}>{'\u2014'}</span>
+                  <span style={{ fontSize: 14, color: mutedColor }}>{'\u2014'}</span>
                 ) : (
                   <>
                     {displayDatasets.map((ds, idx) => (
-                      <Chip
-                        key={idx}
-                        label={ds}
-                        size="small"
-                        sx={{
-                          height: 22,
-                          fontSize: 11,
-                          backgroundColor: '#e0f2fe',
-                          color: '#0369a1',
-                          fontWeight: 500
-                        }}
-                      />
+                      <Chip key={idx} label={ds} size="small" sx={{
+                        height: 22, fontSize: 11, fontWeight: 500,
+                        backgroundColor: isDark ? 'rgba(14,165,233,0.15)' : '#e0f2fe',
+                        color: isDark ? '#7dd3fc' : '#0369a1',
+                      }} />
                     ))}
                     {moreDatasetCount > 0 && (
-                      <Tooltip
-                        title={
-                          <div style={{ padding: 4 }}>
-                            {datasets.slice(2).map((ds, idx) => (
-                              <div key={idx} style={{ padding: '2px 0', fontSize: 12 }}>{ds}</div>
-                            ))}
-                          </div>
-                        }
-                        arrow
-                        placement="top"
-                      >
-                        <span style={{
-                          fontSize: 11,
-                          color: '#3366ff',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          textDecoration: 'underline',
-                          textDecorationStyle: 'dotted'
-                        }}>
+                      <Tooltip title={<div style={{ padding: 4 }}>{datasets.slice(2).map((ds, idx) => (<div key={idx} style={{ padding: '2px 0', fontSize: 12 }}>{ds}</div>))}</div>} arrow placement="top">
+                        <span style={{ fontSize: 11, color: isDark ? '#60a5fa' : '#3366ff', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
                           +{moreDatasetCount} more
                         </span>
                       </Tooltip>
@@ -217,43 +254,19 @@ export default function ProteinTable({
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
                 {modifications.length === 0 ? (
-                  <span style={{ fontSize: 14, color: '#94a3b8' }}>{'\u2014'}</span>
+                  <span style={{ fontSize: 14, color: mutedColor }}>{'\u2014'}</span>
                 ) : (
                   <>
                     {displayMods.map((mod, idx) => (
-                      <Chip
-                        key={idx}
-                        label={mod}
-                        size="small"
-                        sx={{
-                          height: 22,
-                          fontSize: 11,
-                          backgroundColor: '#fef3c7',
-                          color: '#92400e',
-                          fontWeight: 500
-                        }}
-                      />
+                      <Chip key={idx} label={mod} size="small" sx={{
+                        height: 22, fontSize: 11, fontWeight: 500,
+                        backgroundColor: isDark ? 'rgba(251,191,36,0.15)' : '#fef3c7',
+                        color: isDark ? '#fcd34d' : '#92400e',
+                      }} />
                     ))}
                     {moreModCount > 0 && (
-                      <Tooltip
-                        title={
-                          <div style={{ padding: 4 }}>
-                            {modifications.slice(2).map((mod, idx) => (
-                              <div key={idx} style={{ padding: '2px 0', fontSize: 12 }}>{mod}</div>
-                            ))}
-                          </div>
-                        }
-                        arrow
-                        placement="top"
-                      >
-                        <span style={{
-                          fontSize: 11,
-                          color: '#92400e',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          textDecoration: 'underline',
-                          textDecorationStyle: 'dotted'
-                        }}>
+                      <Tooltip title={<div style={{ padding: 4 }}>{modifications.slice(2).map((mod, idx) => (<div key={idx} style={{ padding: '2px 0', fontSize: 12 }}>{mod}</div>))}</div>} arrow placement="top">
+                        <span style={{ fontSize: 11, color: isDark ? '#fcd34d' : '#92400e', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
                           +{moreModCount} more
                         </span>
                       </Tooltip>
@@ -262,19 +275,11 @@ export default function ProteinTable({
                 )}
               </div>
 
-              <div
-                style={{
-                  fontSize: 14,
-                  color: '#475569',
-                  lineHeight: 1.4,
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis'
-                }}
-                title={r.description || ''}
-              >
+              <div style={{
+                fontSize: 14, color: descColor, lineHeight: 1.4,
+                display: '-webkit-box', WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical', overflow: 'hidden', textOverflow: 'ellipsis',
+              }} title={r.description || ''}>
                 {r.description || '\u2014'}
               </div>
             </div>
@@ -282,21 +287,31 @@ export default function ProteinTable({
         })
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '10px 12px', borderTop: '1px solid #eff3fa' }}>
+      {/* Pagination */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 16,
+        padding: '10px 12px',
+        borderTop: `1px solid ${rowBorder}`,
+        background: isDark ? 'rgba(12,18,34,0.4)' : 'transparent',
+      }}>
         <IconButton
           onClick={() => fetchPage(page - 1, tableSearch, tableSpeciesFilter, selectedDatasets, selectedOverlaps)}
           disabled={page <= 1 || tableLoading}
           size="small"
+          sx={isDark ? { color: '#89a2c0', '&.Mui-disabled': { color: 'rgba(255,255,255,0.2)' } } : {}}
         >
           <ChevronLeftIcon />
         </IconButton>
-        <div style={{ fontSize: 14, color: '#5b6a83' }}>
+        <div style={{ fontSize: 14, color: mutedColor }}>
           Page {page} / {totalPages} - Showing {processedRows.length} of {total}
         </div>
         <IconButton
           onClick={() => fetchPage(page + 1, tableSearch, tableSpeciesFilter, selectedDatasets, selectedOverlaps)}
           disabled={page >= totalPages || tableLoading}
           size="small"
+          sx={isDark ? { color: '#89a2c0', '&.Mui-disabled': { color: 'rgba(255,255,255,0.2)' } } : {}}
         >
           <ChevronRightIcon />
         </IconButton>

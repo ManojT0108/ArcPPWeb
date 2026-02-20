@@ -1,9 +1,11 @@
 import React, { useRef } from 'react';
 import { Tooltip } from '@mui/material';
+import { useTheme } from '../ThemeContext';
 
 const COVERED_COLOR = '#60A5FA';
 
 export default function SequenceViewer({ sequence, modifications, onPositionClick, highlightedPosition }) {
+  const { isDark } = useTheme();
   const sequenceRef = useRef(null);
 
   const modificationColors = {};
@@ -83,7 +85,7 @@ export default function SequenceViewer({ sequence, modifications, onPositionClic
           fontWeight: 500,
           cursor: isClickable ? 'pointer' : 'default',
           background: bgColor,
-          color: (mods || isCovered) ? '#000' : '#e6edf7',
+          color: (mods || isCovered) ? '#000' : (isDark ? '#e6edf7' : '#334155'),
           borderRadius: '3px',
           padding: '2px 0',
           margin: '0 0.5px',
@@ -156,9 +158,11 @@ export default function SequenceViewer({ sequence, modifications, onPositionClic
         style={{
           borderRadius: 12,
           padding: '16px',
-          background: 'linear-gradient(180deg, rgba(18,25,43,0.9), rgba(15,20,36,0.9))',
-          border: '1px solid rgba(255,255,255,0.08)',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.35) inset',
+          background: isDark
+            ? 'linear-gradient(180deg, rgba(18,25,43,0.9), rgba(15,20,36,0.9))'
+            : 'linear-gradient(180deg, #f8fafc, #f1f5f9)',
+          border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+          boxShadow: isDark ? '0 1px 4px rgba(0,0,0,0.35) inset' : '0 1px 4px rgba(0,0,0,0.06) inset',
           maxHeight: '280px',
           overflowY: 'auto',
           overflowX: 'hidden',
@@ -176,7 +180,7 @@ export default function SequenceViewer({ sequence, modifications, onPositionClic
           flexWrap: 'wrap',
           gap: 12,
           fontSize: 11,
-          color: '#89a2c0'
+          color: isDark ? '#89a2c0' : '#64748b'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{
@@ -184,7 +188,7 @@ export default function SequenceViewer({ sequence, modifications, onPositionClic
               height: 16,
               background: COVERED_COLOR,
               borderRadius: 3,
-              border: '1px solid rgba(255,255,255,0.2)'
+              border: isDark ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(0,0,0,0.1)'
             }} />
             <span>Covered</span>
           </div>
@@ -195,7 +199,7 @@ export default function SequenceViewer({ sequence, modifications, onPositionClic
                 height: 16,
                 background: color,
                 borderRadius: 3,
-                border: '1px solid rgba(255,255,255,0.2)'
+                border: isDark ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(0,0,0,0.1)'
               }} />
               <span>{type}</span>
             </div>

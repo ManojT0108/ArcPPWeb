@@ -14,19 +14,21 @@ import {
 import GlassCard from './GlassCard';
 
 /* ---------- Custom Tooltip ---------- */
-function CustomTooltip({ active, payload }) {
+function CustomTooltip({ active, payload, isDark }) {
   if (active && payload && payload.length) {
     return (
       <div
         style={{
-          background: 'linear-gradient(180deg, rgba(18,25,43,0.98), rgba(15,20,36,0.98))',
-          border: '1px solid rgba(255,255,255,0.15)',
+          background: isDark
+            ? 'linear-gradient(180deg, rgba(18,25,43,0.98), rgba(15,20,36,0.98))'
+            : 'rgba(255,255,255,0.98)',
+          border: isDark ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(0,0,0,0.1)',
           borderRadius: 10,
           padding: '10px 14px',
-          boxShadow: '0 8px 24px rgba(0,0,0,.6)',
+          boxShadow: isDark ? '0 8px 24px rgba(0,0,0,.6)' : '0 4px 16px rgba(0,0,0,0.12)',
         }}
       >
-        <div style={{ color: '#e6edf7', fontWeight: 600, marginBottom: 4, fontSize: 13 }}>
+        <div style={{ color: isDark ? '#e6edf7' : '#0f172a', fontWeight: 600, marginBottom: 4, fontSize: 13 }}>
           {payload[0].payload.dataset}
         </div>
         <div style={{ color: '#60A5FA', fontSize: 13 }}>
@@ -88,21 +90,19 @@ function PSMsByDatasetChart({ proteinId, mode = 'dark' }) {
     }))
     .sort((a, b) => b.PSMs - a.PSMs);
 
+  const isDark = mode === 'dark';
+  const cardVariant = isDark ? 'dark' : 'light';
+  const mutedColor = isDark ? '#89a2c0' : '#64748b';
+  const axisColor = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)';
+
   // Loading state
   if (loading) {
     return (
-      <GlassCard title="PSMs by Dataset" style={cardStyle}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          flex: 1,
-          color: '#89a2c0'
-        }}>
+      <GlassCard title="PSMs by Dataset" style={cardStyle} variant={cardVariant}>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1, color: mutedColor }}>
           <div style={{ textAlign: 'center' }}>
             <div className="loading-spinner" style={{
-              width: 40,
-              height: 40,
+              width: 40, height: 40,
               border: '4px solid rgba(91,141,243,0.2)',
               borderTopColor: '#5b8df3',
               borderRadius: '50%',
@@ -112,11 +112,7 @@ function PSMsByDatasetChart({ proteinId, mode = 'dark' }) {
             <div>Loading PSM data...</div>
           </div>
         </div>
-        <style>{`
-          @keyframes spin {
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </GlassCard>
     );
   }
@@ -124,18 +120,9 @@ function PSMsByDatasetChart({ proteinId, mode = 'dark' }) {
   // Error state
   if (error) {
     return (
-      <GlassCard title="PSMs by Dataset" style={cardStyle}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          flex: 1,
-          color: '#f87171',
-          textAlign: 'center'
-        }}>
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 500 }}>{error}</div>
-          </div>
+      <GlassCard title="PSMs by Dataset" style={cardStyle} variant={cardVariant}>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1, color: '#f87171', textAlign: 'center' }}>
+          <div><div style={{ fontSize: 16, fontWeight: 500 }}>{error}</div></div>
         </div>
       </GlassCard>
     );
@@ -144,18 +131,9 @@ function PSMsByDatasetChart({ proteinId, mode = 'dark' }) {
   // No data state
   if (chartData.length === 0) {
     return (
-      <GlassCard title="PSMs by Dataset" style={cardStyle}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          flex: 1,
-          color: '#89a2c0',
-          textAlign: 'center'
-        }}>
-          <div>
-            <div style={{ fontSize: 16 }}>No PSM data available for this protein</div>
-          </div>
+      <GlassCard title="PSMs by Dataset" style={cardStyle} variant={cardVariant}>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1, color: mutedColor, textAlign: 'center' }}>
+          <div><div style={{ fontSize: 16 }}>No PSM data available for this protein</div></div>
         </div>
       </GlassCard>
     );
@@ -169,14 +147,11 @@ function PSMsByDatasetChart({ proteinId, mode = 'dark' }) {
 
   // Main render
   return (
-    <GlassCard title="PSMs by Dataset" style={cardStyle}>
+    <GlassCard title="PSMs by Dataset" style={cardStyle} variant={cardVariant}>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        <ResponsiveContainer width="100%" height={320}>
-          <BarChart
-            data={chartData}
-            margin={{ top: 20, right: 10, left: 10, bottom: 90 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" vertical={false} />
+        <ResponsiveContainer width="100%" height={240}>
+          <BarChart data={chartData} margin={{ top: 12, right: 10, left: 10, bottom: 80 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'} vertical={false} />
 
             <XAxis
               dataKey="dataset"
@@ -184,30 +159,23 @@ function PSMsByDatasetChart({ proteinId, mode = 'dark' }) {
               textAnchor="end"
               height={80}
               interval={0}
-              tick={{ fill: '#89a2c0', fontSize: 11 }}
-              stroke="rgba(255,255,255,0.15)"
-              axisLine={{ stroke: 'rgba(255,255,255,0.15)' }}
+              tick={{ fill: mutedColor, fontSize: 11 }}
+              stroke={axisColor}
+              axisLine={{ stroke: axisColor }}
             />
 
             <YAxis
-              tick={{ fill: '#89a2c0', fontSize: 11 }}
-              stroke="rgba(255,255,255,0.15)"
-              axisLine={{ stroke: 'rgba(255,255,255,0.15)' }}
-              tickLine={{ stroke: 'rgba(255,255,255,0.15)' }}
+              tick={{ fill: mutedColor, fontSize: 11 }}
+              stroke={axisColor}
+              axisLine={{ stroke: axisColor }}
+              tickLine={{ stroke: axisColor }}
             />
 
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
+            <Tooltip content={<CustomTooltip isDark={isDark} />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }} />
 
-            <Bar
-              dataKey="PSMs"
-              radius={[6, 6, 0, 0]}
-              animationDuration={800}
-            >
+            <Bar dataKey="PSMs" radius={[6, 6, 0, 0]} animationDuration={800}>
               {chartData.map((entry, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={getBarColor(index, chartData.length)}
-                />
+                <Cell key={`cell-${index}`} fill={getBarColor(index, chartData.length)} />
               ))}
             </Bar>
           </BarChart>
@@ -216,22 +184,17 @@ function PSMsByDatasetChart({ proteinId, mode = 'dark' }) {
         {/* Footer info */}
         <div style={{
           paddingTop: 12,
-          borderTop: '1px solid rgba(255,255,255,0.08)',
+          borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           fontSize: 11,
-          color: '#89a2c0'
+          color: mutedColor,
         }}>
           <div>
-            <strong style={{ color: '#e6edf7', fontSize: 12 }}>{chartData.length}-datasets</strong> identified
+            <strong style={{ color: isDark ? '#e6edf7' : '#0f172a', fontSize: 12 }}>{chartData.length}-datasets</strong> identified
           </div>
-          <div style={{
-            fontSize: 10,
-            color: '#7e92b5',
-            textAlign: 'right',
-            maxWidth: '60%'
-          }}>
+          <div style={{ fontSize: 10, color: mutedColor, textAlign: 'right', maxWidth: '60%' }}>
             Tip: Use arrow keys to pan, Home to reset, or click
           </div>
         </div>

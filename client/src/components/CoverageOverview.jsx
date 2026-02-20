@@ -1,46 +1,40 @@
 import React from 'react';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
+import { useTheme } from '../ThemeContext';
 
 export default function CoverageOverview({ coverageData, coverageLoading }) {
+  const { isDark } = useTheme();
+
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 28 }}>
       <div style={{
-        background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
-        borderRadius: 24,
-        padding: '48px 64px',
-        boxShadow: '0 8px 32px rgba(14, 165, 233, 0.15)',
-        border: '2px solid #bae6fd',
+        background: isDark ? 'rgba(15,23,42,0.6)' : '#f8fafc',
+        borderRadius: 14,
+        padding: '24px 36px',
+        boxShadow: isDark ? '0 1px 4px rgba(0,0,0,0.2)' : '0 1px 4px rgba(0,0,0,0.06)',
+        border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid #e2e8f0',
         display: 'flex',
         alignItems: 'center',
-        gap: 48,
-        transition: 'all 0.3s ease'
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateY(-4px)';
-        e.currentTarget.style.boxShadow = '0 12px 48px rgba(14, 165, 233, 0.25)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = '0 8px 32px rgba(14, 165, 233, 0.15)';
+        gap: 32,
       }}>
         {coverageLoading ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: '#0284c7', fontSize: 16, fontWeight: 500 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 150, color: isDark ? '#94a3b8' : '#64748b', fontSize: 15 }}>
             Loading coverage data...
           </div>
         ) : coverageData.length > 0 && coverageData[0] ? (
           <>
-            <div style={{ width: 200, height: 200 }}>
+            <div style={{ width: 130, height: 130 }}>
               <CircularProgressbar
                 value={coverageData[0].coveragePercent || 0}
                 text={`${(coverageData[0].coveragePercent || 0).toFixed(1)}%`}
                 styles={buildStyles({
                   textSize: '20px',
-                  pathColor: '#0ea5e9',
-                  textColor: '#0c4a6e',
-                  trailColor: '#bae6fd',
-                  pathTransitionDuration: 1.5,
-                  strokeLinecap: 'round'
+                  pathColor: '#3b82f6',
+                  textColor: isDark ? '#e2e8f0' : '#1e293b',
+                  trailColor: isDark ? 'rgba(59,130,246,0.12)' : '#e2e8f0',
+                  pathTransitionDuration: 1,
+                  strokeLinecap: 'round',
                 })}
                 strokeWidth={8}
               />
@@ -48,51 +42,40 @@ export default function CoverageOverview({ coverageData, coverageLoading }) {
 
             <div style={{ maxWidth: 320 }}>
               <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '6px 14px',
-                background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
-                borderRadius: 20,
-                marginBottom: 16,
-                boxShadow: '0 4px 12px rgba(14, 165, 233, 0.3)'
+                display: 'inline-block',
+                padding: '4px 10px',
+                background: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff',
+                borderRadius: 6,
+                marginBottom: 12,
+                border: isDark ? '1px solid rgba(59,130,246,0.25)' : '1px solid #bfdbfe',
               }}>
-                <div style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  background: 'white',
-                  animation: 'pulse 2s ease-in-out infinite'
-                }} />
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'white', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                  Species Available: 1
+                <span style={{ fontSize: 11, fontWeight: 600, color: isDark ? '#93c5fd' : '#2563eb', letterSpacing: '0.3px', textTransform: 'uppercase' }}>
+                  1 Species Available
                 </span>
               </div>
 
               <h3 style={{
-                fontSize: 28,
-                fontWeight: 700,
-                color: '#0c4a6e',
+                fontSize: 22,
+                fontWeight: 600,
+                color: isDark ? '#e2e8f0' : '#1e293b',
                 margin: 0,
-                marginBottom: 8,
-                letterSpacing: '-0.01em'
+                marginBottom: 6,
               }}>
                 Haloferax volcanii
               </h3>
 
               <p style={{
-                fontSize: 15,
-                color: '#0369a1',
+                fontSize: 14,
+                color: isDark ? '#94a3b8' : '#64748b',
                 margin: 0,
                 lineHeight: 1.6,
-                fontWeight: 500
               }}>
-                Proteome sequencing coverage represents the percentage of the complete protein set that has been successfully identified and characterized.
+                Proteome coverage: percentage of the complete protein set identified and characterized.
               </p>
             </div>
           </>
         ) : (
-          <div style={{ padding: 40, color: '#94a3b8', textAlign: 'center' }}>
+          <div style={{ padding: 40, color: isDark ? '#64748b' : '#94a3b8', textAlign: 'center' }}>
             No coverage data available
           </div>
         )}
