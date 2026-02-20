@@ -12,15 +12,11 @@ import PSMsByDatasetChart from '../components/PSMsByDatasetChart';
 import GlassCard from '../components/GlassCard';
 import SequenceViewer from '../components/SequenceViewer';
 import MiniCardDark from '../components/MiniCardDark';
-
-const pageBgStyle = {
-  minHeight: '100vh',
-  background:
-    'radial-gradient(1400px 700px at 50% -10%, #10203f 0%, #0c162a 35%, #081322 100%)',
-};
+import { useTheme } from '../ThemeContext';
 
 export default function ProteinPlotPage() {
   const { hvoId } = useParams();
+  const { isDark } = useTheme();
 
   const [coverage, setCoverage] = useState(null);
   const [protein, setProtein] = useState(null);
@@ -31,6 +27,13 @@ export default function ProteinPlotPage() {
   const [err, setErr] = useState('');
   const [selectedPosition, setSelectedPosition] = useState(null);
   const plotRef = useRef(null);
+
+  const pageBgStyle = {
+    minHeight: '100vh',
+    background: isDark ? '#0f172a' : '#f8fafc',
+  };
+
+  const cardVariant = isDark ? 'dark' : 'light';
 
   useEffect(() => {
     let cancelled = false;
@@ -83,9 +86,9 @@ export default function ProteinPlotPage() {
       <div style={pageBgStyle}>
         <NavBar />
         <div style={{ maxWidth: 1120, margin: '0 auto', padding: '40px 24px' }}>
-          <div style={{ height: 32, width: 220, background: '#17223a', borderRadius: 8, marginBottom: 8 }} />
-          <div style={{ height: 16, width: 180, background: '#17223a', borderRadius: 6 }} />
-          <div style={{ marginTop: 24, height: 220, borderRadius: 20, background: '#0c1428' }} />
+          <div style={{ height: 32, width: 220, background: isDark ? '#17223a' : '#e2e8f0', borderRadius: 8, marginBottom: 8 }} />
+          <div style={{ height: 16, width: 180, background: isDark ? '#17223a' : '#e2e8f0', borderRadius: 6 }} />
+          <div style={{ marginTop: 24, height: 220, borderRadius: 20, background: isDark ? '#0c1428' : '#e8eef7' }} />
         </div>
       </div>
     );
@@ -95,7 +98,7 @@ export default function ProteinPlotPage() {
     return (
       <div style={pageBgStyle}>
         <NavBar />
-        <div style={{ maxWidth: 760, margin: '0 auto', padding: '40px 24px', color: '#89a2c0' }}>
+        <div style={{ maxWidth: 760, margin: '0 auto', padding: '40px 24px', color: isDark ? '#89a2c0' : '#64748b' }}>
           {err || 'No data.'}
         </div>
       </div>
@@ -120,50 +123,54 @@ export default function ProteinPlotPage() {
       <main style={{ maxWidth: 1120, margin: '0 auto', padding: '40px 24px 64px' }}>
         {/* Header */}
         <header style={{ marginBottom: 24 }}>
-          <h1 style={{ fontSize: '48px', fontWeight: 700, color: '#e6edf7', letterSpacing: 0.2, margin: 0 }}>{hvoId}</h1>
-          <p style={{ marginTop: 8, color: '#89a2c0', fontSize: 16 }}>Coverage overview</p>
+          <h1 style={{ fontSize: 32, fontWeight: 700, color: isDark ? '#e2e8f0' : '#1e293b', margin: 0 }}>{hvoId}</h1>
+          <p style={{ marginTop: 6, color: isDark ? '#94a3b8' : '#64748b', fontSize: 14 }}>Coverage overview</p>
         </header>
 
         {/* 2x2 Grid Layout */}
-        <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
+        <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
 
           {/* Tile 1: Info Cards (Top Left) */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
             gridTemplateRows: 'auto auto auto auto auto',
-            gap: 16,
-            minHeight: 400
+            gap: 12,
+            minHeight: 320
           }}>
             <MiniCardDark
               label="UNIPROT ID"
               value={uniProtein_id || '\u2014'}
               link={uniProtein_id ? `https://www.uniprot.org/uniprotkb/${uniProtein_id}/entry` : null}
+              variant={cardVariant}
             />
-            <MiniCardDark label="QVALUE" value={qValue ?? '\u2014'} />
+            <MiniCardDark label="QVALUE" value={qValue ?? '\u2014'} variant={cardVariant} />
             <div style={{ gridColumn: 'span 2' }}>
-              <MiniCardDark label="DESCRIPTION" value={description || '\u2014'} fullHeight />
+              <MiniCardDark label="DESCRIPTION" value={description || '\u2014'} fullHeight variant={cardVariant} />
             </div>
-            <MiniCardDark label="Peptides" value={psmCount ?? '\u2014'} />
-            <MiniCardDark label="PSMs" value={totalPsms ? totalPsms.toLocaleString() : '\u2014'} />
+            <MiniCardDark label="Peptides" value={psmCount ?? '\u2014'} variant={cardVariant} />
+            <MiniCardDark label="PSMs" value={totalPsms ? totalPsms.toLocaleString() : '\u2014'} variant={cardVariant} />
             <MiniCardDark
               label="HYDROPHOBICITY"
               value={hydrophobicity !== undefined && hydrophobicity !== null ? hydrophobicity.toFixed(3) : '\u2014'}
+              variant={cardVariant}
             />
             <MiniCardDark
               label="pI"
               value={pI !== undefined && pI !== null ? pI.toFixed(2) : '\u2014'}
+              variant={cardVariant}
             />
             <MiniCardDark
               label="MOLECULAR WEIGHT"
               value={molecular_weight !== undefined && molecular_weight !== null ? molecular_weight : '\u2014'}
+              variant={cardVariant}
             />
           </div>
 
           {/* Tile 2: Circular Gauge (Top Right) */}
-          <GlassCard style={{ minHeight: 400 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 20 }}>
-              <div style={{ width: 220, height: 220 }}>
+          <GlassCard style={{ minHeight: 320 }} variant={cardVariant}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16 }}>
+              <div style={{ width: 170, height: 170 }}>
                 <Tooltip title={tooltipContent} arrow placement="top" enterTouchDelay={0} leaveTouchDelay={2500}>
                   <div style={{ width: '100%', height: '100%' }} aria-label="Sequences identified gauge">
                     <CircularProgressbar
@@ -171,9 +178,9 @@ export default function ProteinPlotPage() {
                       text={`${coverage_percent.toFixed(1)}%`}
                       strokeWidth={10}
                       styles={buildStyles({
-                        textColor: '#e6edf7',
+                        textColor: isDark ? '#e6edf7' : '#0f172a',
                         pathColor: '#5b8df3',
-                        trailColor: '#1a2438',
+                        trailColor: isDark ? '#1a2438' : '#e2e8f0',
                         textSize: '20px',
                         pathTransitionDuration: 1.0,
                       })}
@@ -182,16 +189,16 @@ export default function ProteinPlotPage() {
                 </Tooltip>
               </div>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ color: '#89a2c0', fontSize: 14, fontWeight: 500, marginBottom: 12 }}>
+                <div style={{ color: isDark ? '#89a2c0' : '#64748b', fontSize: 14, fontWeight: 500, marginBottom: 12 }}>
                   Sequence Coverage
                 </div>
-                <div style={{ display: 'flex', gap: 24, fontSize: 12, color: '#7e92b5' }}>
+                <div style={{ display: 'flex', gap: 24, fontSize: 12, color: isDark ? '#7e92b5' : '#94a3b8' }}>
                   <div>
                     <div style={{ color: '#60A5FA', fontWeight: 600, fontSize: 18, marginBottom: 4 }}>{covered_length}</div>
                     <div>Covered AA</div>
                   </div>
                   <div>
-                    <div style={{ color: '#e6edf7', fontWeight: 600, fontSize: 18, marginBottom: 4 }}>{total_length}</div>
+                    <div style={{ color: isDark ? '#e6edf7' : '#0f172a', fontWeight: 600, fontSize: 18, marginBottom: 4 }}>{total_length}</div>
                     <div>Total AA</div>
                   </div>
                 </div>
@@ -201,8 +208,9 @@ export default function ProteinPlotPage() {
 
           {/* Tile 3: Sequence Viewer (Bottom Left) */}
           <GlassCard
-            title={<span style={{ fontSize: 14, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#89a2c0' }}>PROTEIN SEQUENCE — Click colored amino acid to zoom</span>}
-            style={{ minHeight: 400, display: 'flex', flexDirection: 'column' }}
+            title={<span style={{ fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.05em', color: isDark ? '#89a2c0' : '#64748b' }}>PROTEIN SEQUENCE — Click colored amino acid to zoom</span>}
+            style={{ minHeight: 320, display: 'flex', flexDirection: 'column' }}
+            variant={cardVariant}
           >
             {sequenceData && sequenceData.sequence && (
               <SequenceViewer
@@ -215,10 +223,10 @@ export default function ProteinPlotPage() {
           </GlassCard>
 
           {/* Tile 4: PSMs by Dataset Chart (Bottom Right) */}
-          <div style={{ minHeight: 400 }}>
+          <div style={{ minHeight: 320 }}>
             <PSMsByDatasetChart
               proteinId={hvoId}
-              mode="dark"
+              mode={isDark ? 'dark' : 'light'}
             />
           </div>
 
@@ -229,7 +237,7 @@ export default function ProteinPlotPage() {
           <PeptideCoveragePlot
             ref={plotRef}
             hvoId={hvoId}
-            mode="dark"
+            mode={isDark ? 'dark' : 'light'}
             zoomToPosition={selectedPosition}
           />
         </section>

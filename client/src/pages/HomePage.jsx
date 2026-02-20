@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useTheme } from '../ThemeContext';
 import {
   Autocomplete,
   TextField,
@@ -15,16 +16,29 @@ import ProteinTable from '../components/ProteinTable';
 
 const PAGE_SIZE = 25;
 
-const inputSx = {
-  width: 360,
-  backgroundColor: 'white',
-  borderRadius: '10px',
-  '& .MuiOutlinedInput-root': { borderRadius: '10px' },
-  '& .MuiInputBase-input': { fontSize: 16 },
-};
-
 export default function HomePage() {
   const navigate = useNavigate();
+  const { isDark, toggleTheme } = useTheme();
+  const speciesChartRef = useRef(null);
+
+  const inputSx = {
+    width: 360,
+    borderRadius: '10px',
+    backgroundColor: isDark ? '#17223a' : 'white',
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '10px',
+      color: isDark ? '#e6edf7' : 'inherit',
+      '& fieldset': { borderColor: isDark ? 'rgba(255,255,255,0.15)' : undefined },
+      '&:hover fieldset': { borderColor: isDark ? 'rgba(255,255,255,0.3)' : undefined },
+      '&.Mui-focused fieldset': { borderColor: isDark ? '#0ea5e9' : undefined },
+    },
+    '& .MuiInputBase-input': { fontSize: 16, color: isDark ? '#e6edf7' : 'inherit' },
+    '& .MuiInputLabel-root': { color: isDark ? '#89a2c0' : undefined },
+    '& .MuiInputLabel-root.Mui-focused': { color: isDark ? '#0ea5e9' : undefined },
+    '& .MuiSvgIcon-root': { color: isDark ? '#89a2c0' : undefined },
+    '& .MuiAutocomplete-popupIndicator': { color: isDark ? '#89a2c0' : undefined },
+    '& .MuiAutocomplete-clearIndicator': { color: isDark ? '#89a2c0' : undefined },
+  };
 
   const speciesOptions = [{ label: 'Haloferax volcanii', value: 'Haloferax volcanii' }];
   const [speciesValue, setSpeciesValue] = useState(speciesOptions[0]);
@@ -47,6 +61,21 @@ export default function HomePage() {
   const [tableError, setTableError] = useState('');
   const [tableSearch, setTableSearch] = useState('');
   const [sort, setSort] = useState({ key: 'hvoId', dir: 'asc' });
+
+  useEffect(() => {
+    const color = isDark ? '#c8d6e5' : '#334155';
+    if (!speciesChartRef.current) return;
+    const apply = () => {
+      speciesChartRef.current?.querySelectorAll('text').forEach(el => {
+        el.setAttribute('fill', color);
+        el.style.fill = color;
+      });
+    };
+    apply();
+    const observer = new MutationObserver(apply);
+    observer.observe(speciesChartRef.current, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [isDark, coverageData]);
 
   const onSort = (key) => {
     setSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
@@ -187,90 +216,94 @@ export default function HomePage() {
   }, [speciesValue]);
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #f0f4fa 0%, #e8eef7 100%)' }}>
+    <div style={{
+      minHeight: '100vh',
+      background: isDark ? '#0f172a' : '#f8fafc'
+    }}>
       <nav style={{
-        background: 'white',
-        padding: '18px 24px',
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-        borderBottom: '1px solid #e0f2fe',
+        background: isDark ? '#0f172a' : 'white',
+        padding: '14px 24px',
+        boxShadow: isDark ? '0 1px 0 rgba(255,255,255,0.06)' : '0 1px 0 #e2e8f0',
         position: 'sticky',
         top: 0,
         zIndex: 100
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 1200, margin: '0 auto' }}>
-          <Link to="/" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: 14 }}>
+          <Link to="/" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{
-              width: 44,
-              height: 44,
-              borderRadius: 12,
-              background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
+              width: 36,
+              height: 36,
+              borderRadius: 8,
+              background: '#3b82f6',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: 24,
+              fontSize: 18,
               fontWeight: 700,
               color: 'white',
-              boxShadow: '0 4px 12px rgba(14, 165, 233, 0.3)'
             }}>A</div>
             <div style={{
-              fontWeight: 800,
-              fontSize: 24,
-              background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              letterSpacing: '-0.02em'
+              fontWeight: 700,
+              fontSize: 20,
+              color: isDark ? '#e2e8f0' : '#1e293b',
+              letterSpacing: '-0.01em'
             }}>ArcPP</div>
           </Link>
 
-          <div
-            onClick={() => navigate('/datasets')}
-            style={{
-              padding: '10px 20px',
-              background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
-              color: 'white',
-              fontWeight: 600,
-              fontSize: 14,
-              borderRadius: 10,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              boxShadow: '0 4px 12px rgba(14, 165, 233, 0.3)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 6px 16px rgba(14, 165, 233, 0.4)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(14, 165, 233, 0.3)';
-            }}
-          >
-            Browse Datasets →
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div
+              onClick={() => navigate('/datasets')}
+              style={{
+                padding: '8px 16px',
+                background: '#3b82f6',
+                color: 'white',
+                fontWeight: 500,
+                fontSize: 13,
+                borderRadius: 6,
+                cursor: 'pointer',
+              }}
+            >
+              Browse Datasets
+            </div>
+            <button
+              onClick={toggleTheme}
+              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              style={{
+                background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : '#e2e8f0'}`,
+                borderRadius: 6,
+                cursor: 'pointer',
+                fontSize: 15,
+                width: 36,
+                height: 36,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {isDark ? '☀️' : '🌙'}
+            </button>
           </div>
         </div>
       </nav>
 
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '48px 24px' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '36px 24px' }}>
         <div style={{
-          background: 'white',
-          borderRadius: 20,
-          padding: 40,
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
-          border: '1px solid #e8eef7',
-          marginBottom: 40
+          background: isDark ? 'rgba(15,23,42,0.6)' : 'white',
+          borderRadius: 14,
+          padding: '32px 36px',
+          boxShadow: isDark ? '0 1px 4px rgba(0,0,0,0.2)' : '0 1px 4px rgba(0,0,0,0.06)',
+          border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid #e2e8f0',
+          marginBottom: 32
         }}>
           <h1 style={{
-            fontSize: 38,
-            fontWeight: 800,
-            background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
+            fontSize: 28,
+            fontWeight: 700,
+            color: isDark ? '#e2e8f0' : '#1e293b',
             margin: 0,
-            marginBottom: 12,
-            letterSpacing: '-0.02em'
+            marginBottom: 8,
           }}>Archaeal Proteome Project</h1>
-          <p style={{ fontSize: 16, color: '#64748b', margin: 0, fontWeight: 500 }}>Explore protein coverage, modifications, and datasets across archaeal species.</p>
+          <p style={{ fontSize: 14, color: isDark ? '#94a3b8' : '#64748b', margin: 0 }}>Explore protein coverage, modifications, and datasets across archaeal species.</p>
 
           <div style={{ marginTop: 32 }}>
             <CoverageOverview coverageData={coverageData} coverageLoading={coverageLoading} />
@@ -288,6 +321,7 @@ export default function HomePage() {
                 }}
                 renderInput={(params) => <TextField {...params} label="Select a Species" sx={inputSx} />}
                 isOptionEqualToValue={(option, value) => option.value === value.value}
+                componentsProps={isDark ? { paper: { sx: { background: '#17223a', color: '#e6edf7', '& .MuiAutocomplete-option:hover': { background: 'rgba(255,255,255,0.08)' }, '& .MuiAutocomplete-option[aria-selected="true"]': { background: 'rgba(14,165,233,0.2)' } } } } : {}}
               />
               <Autocomplete
                 disablePortal
@@ -298,8 +332,9 @@ export default function HomePage() {
                   if (v?.value) navigate(`/plot/${v.value}`);
                 }}
                 loading={optLoading}
-                renderInput={(params) => <TextField {...params} label="Search by Protein ID" sx={inputSx} InputProps={{ ...params.InputProps, startAdornment: (<InputAdornment position="start"><SearchIcon /></InputAdornment>) }} />}
+                renderInput={(params) => <TextField {...params} label="Search by Protein ID" sx={inputSx} InputProps={{ ...params.InputProps, startAdornment: (<InputAdornment position="start"><SearchIcon sx={isDark ? { color: '#89a2c0' } : {}} /></InputAdornment>) }} />}
                 isOptionEqualToValue={(option, value) => option.value === value.value}
+                componentsProps={isDark ? { paper: { sx: { background: '#17223a', color: '#e6edf7', '& .MuiAutocomplete-option:hover': { background: 'rgba(255,255,255,0.08)' }, '& .MuiAutocomplete-option[aria-selected="true"]': { background: 'rgba(14,165,233,0.2)' } } } } : {}}
               />
             </div>
           </div>
@@ -308,72 +343,53 @@ export default function HomePage() {
           {speciesValue && coverageData.length > 0 && coverageData[0] && (
             <div style={{ marginTop: 28, display: 'flex', justifyContent: 'center' }}>
               <div style={{
-                background: 'white',
-                borderRadius: 20,
-                padding: '40px',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                border: '2px solid #e8eef7',
-                transition: 'all 0.3s ease',
-                cursor: 'pointer',
-                maxWidth: 900,
+                background: isDark ? 'rgba(15,23,42,0.6)' : '#f8fafc',
+                borderRadius: 12,
+                padding: '20px 24px',
+                border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid #e2e8f0',
+                maxWidth: 680,
                 width: '100%'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-6px)';
-                e.currentTarget.style.boxShadow = '0 16px 48px rgba(88, 145, 237, 0.25)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.1)';
               }}>
-                <h3 style={{ fontSize: 24, fontWeight: 700, color: '#0b1b3a', marginBottom: 10, textAlign: 'center' }}>Species Proteome Coverage</h3>
-                <p style={{ fontSize: 14, color: '#64748b', marginBottom: 32, textAlign: 'center' }}>Click on a bar to explore proteins</p>
+                <h3 style={{ fontSize: 18, fontWeight: 600, color: isDark ? '#e2e8f0' : '#1e293b', marginBottom: 4, textAlign: 'center' }}>Species Proteome Coverage</h3>
+                <p style={{ fontSize: 13, color: isDark ? '#94a3b8' : '#64748b', marginBottom: 20, textAlign: 'center' }}>Click on a bar to explore proteins</p>
 
                 <div style={{ display: 'flex', justifyContent: 'center' }}>
-                  <BarChart
-                    xAxis={[{
-                      id: 'barCategories',
-                      data: ['Haloferax volcanii', 'Halobacterium salinarum', 'Sulfolobus solfataricus', 'Methanococcus maripaludis'],
-                      scaleType: 'band',
-                      tickLabelStyle: { angle: -20, textAnchor: 'end', fontSize: 13 }
-                    }]}
-                    series={[{
-                      data: [
-                        coverageData[0].coveragePercent || 0,
-                        0,
-                        0,
-                        0
-                      ],
-                      label: 'Coverage (%)',
-                      color: '#5891ed',
-                      highlightScope: { highlighted: 'item', faded: 'global' },
-                      valueFormatter: (value) => value > 0 ? `${value.toFixed(1)}%` : 'Coming soon'
-                    }]}
-                    height={320}
-                    width={700}
-                    yAxis={[{ label: 'Coverage (%)' }]}
-                    margin={{ bottom: 90, left: 70, right: 20, top: 30 }}
-                    borderRadius={10}
-                    slotProps={{
-                      bar: {
-                        style: { cursor: 'pointer', rx: 10 }
-                      }
-                    }}
-                    onItemClick={(event, d) => {
-                      if (d.dataIndex === 0 && coverageData[0].coveragePercent > 0) {
-                        setShowTable(true);
-                        setShowDatasetGraphs(true);
-                      }
-                    }}
-                  />
+                  <div ref={speciesChartRef}>
+                    <BarChart
+                      xAxis={[{
+                        id: 'barCategories',
+                        data: ['Haloferax volcanii', 'Halobacterium salinarum', 'Sulfolobus solfataricus', 'Methanococcus maripaludis'],
+                        scaleType: 'band',
+                        tickLabelStyle: { angle: -20, textAnchor: 'end', fontSize: 11 }
+                      }]}
+                      series={[{
+                        data: [coverageData[0].coveragePercent || 0, 0, 0, 0],
+                        color: '#3b82f6',
+                        highlightScope: { highlighted: 'item', faded: 'global' },
+                        valueFormatter: (value) => value > 0 ? `${value.toFixed(1)}%` : 'Coming soon'
+                      }]}
+                      height={220}
+                      width={540}
+                      yAxis={[{ label: 'Coverage (%)' }]}
+                      margin={{ bottom: 70, left: 56, right: 16, top: 16 }}
+                      borderRadius={4}
+                      slotProps={{ bar: { style: { cursor: 'pointer' } } }}
+                      onItemClick={(event, d) => {
+                        if (d.dataIndex === 0 && coverageData[0].coveragePercent > 0) {
+                          setShowTable(true);
+                          setShowDatasetGraphs(true);
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
 
-                <div style={{ marginTop: 24, padding: '16px 20px', background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', borderRadius: 12, border: '2px solid #bae6fd', textAlign: 'center' }}>
-                  <div style={{ fontSize: 14, color: '#0c4a6e', marginBottom: 6 }}>
-                    <strong style={{ color: '#0369a1' }}>Click the Haloferax volcanii bar</strong> to explore detailed protein table and dataset analysis
+                <div style={{ marginTop: 16, padding: '10px 14px', background: isDark ? 'rgba(59,130,246,0.06)' : '#eff6ff', borderRadius: 8, border: isDark ? '1px solid rgba(59,130,246,0.15)' : '1px solid #bfdbfe', textAlign: 'center' }}>
+                  <div style={{ fontSize: 13, color: isDark ? '#94a3b8' : '#475569' }}>
+                    <strong style={{ color: isDark ? '#93c5fd' : '#2563eb' }}>Click the Haloferax volcanii bar</strong> to explore protein table and datasets
                   </div>
-                  <div style={{ fontSize: 12, color: '#0284c7', fontStyle: 'italic' }}>
-                    More species coming soon!
+                  <div style={{ fontSize: 11, color: isDark ? '#64748b' : '#94a3b8', marginTop: 4 }}>
+                    More species coming soon
                   </div>
                 </div>
               </div>

@@ -24,8 +24,8 @@ COPY --from=build /app .
 # Expose port
 EXPOSE 5000
 
-# Make entrypoint executable
-RUN chmod +x entrypoint.sh
+# Make entrypoint executable and fix Windows line endings
+RUN chmod +x entrypoint.sh && sed -i 's/\r//' entrypoint.sh
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
