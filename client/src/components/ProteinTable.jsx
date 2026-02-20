@@ -37,12 +37,12 @@ export default function ProteinTable({
 }) {
   const { isDark } = useTheme();
 
-  const borderColor = isDark ? 'rgba(255,255,255,0.08)' : '#e8eef7';
-  const rowBorder = isDark ? 'rgba(255,255,255,0.06)' : '#eff3fa';
-  const headerColor = isDark ? '#89a2c0' : '#5b6a83';
-  const mutedColor = isDark ? '#89a2c0' : '#5b6a83';
-  const textColor = isDark ? '#e6edf7' : '#0b1b3a';
-  const descColor = isDark ? '#94a3b8' : '#475569';
+  const borderColor = isDark ? 'rgba(159,195,222,0.14)' : '#d8e2e8';
+  const rowBorder = isDark ? 'rgba(159,195,222,0.12)' : '#e8eff3';
+  const headerColor = isDark ? '#9cb0c4' : '#5f7282';
+  const mutedColor = isDark ? '#9cb0c4' : '#5f7282';
+  const textColor = isDark ? '#e6edf7' : '#132334';
+  const descColor = isDark ? '#9cb0c4' : '#4f6375';
 
   const muiInputSx = isDark ? {
     '& .MuiOutlinedInput-root': {
@@ -94,9 +94,9 @@ export default function ProteinTable({
     <div style={{
       maxWidth: 1150,
       margin: '0 auto 40px auto',
-      background: isDark ? 'rgba(15,22,42,0.95)' : 'white',
+      background: isDark ? 'rgba(14,24,37,0.96)' : 'linear-gradient(180deg, #ffffff, #f7fafb)',
       borderRadius: 16,
-      boxShadow: isDark ? '0 8px 24px rgba(0,0,0,0.4)' : '0 8px 24px rgba(2,12,27,0.08)',
+      boxShadow: isDark ? '0 12px 26px rgba(3,9,16,0.44)' : '0 12px 26px rgba(17,39,58,0.08)',
       border: `1px solid ${borderColor}`,
       overflow: 'hidden',
     }}>
@@ -108,7 +108,7 @@ export default function ProteinTable({
         gap: 12,
         flexWrap: 'wrap',
         borderBottom: `1px solid ${borderColor}`,
-        background: isDark ? 'rgba(12,18,34,0.6)' : 'transparent',
+        background: isDark ? 'rgba(12,20,32,0.68)' : '#f8fbfc',
       }}>
         <div style={{ fontWeight: 700, color: textColor, display: 'flex', alignItems: 'center', gap: 12 }}>
           <span>Proteins</span>
@@ -219,7 +219,7 @@ export default function ProteinTable({
               }}
             >
               <div>
-                <Link to={`/plot/${r.hvoId}`} style={{ color: isDark ? '#60a5fa' : '#3366ff', textDecoration: 'none', fontWeight: 500 }}>
+                <Link to={`/plot/${r.hvoId}`} style={{ color: isDark ? '#a9c9df' : '#325f86', textDecoration: 'none', fontWeight: 600 }}>
                   {r.hvoId}
                 </Link>
               </div>

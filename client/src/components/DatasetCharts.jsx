@@ -41,19 +41,19 @@ export default function DatasetCharts({
   }, [isDark, datasetStats, datasetOverlap]);
 
   const cardStyle = {
-    background: isDark ? 'rgba(15,23,42,0.6)' : '#ffffff',
+    background: isDark ? 'rgba(15,25,38,0.78)' : '#ffffff',
     padding: 18,
-    borderRadius: 12,
-    boxShadow: isDark ? '0 1px 4px rgba(0,0,0,0.2)' : '0 1px 4px rgba(0,0,0,0.06)',
-    border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid #e2e8f0',
+    borderRadius: 14,
+    boxShadow: isDark ? '0 10px 22px rgba(3,9,16,0.34)' : '0 10px 22px rgba(17,39,58,0.07)',
+    border: isDark ? '1px solid rgba(157,196,224,0.14)' : '1px solid #d8e2e8',
   };
 
-  const headingColor = isDark ? '#e2e8f0' : '#1e293b';
-  const mutedColor = isDark ? '#94a3b8' : '#64748b';
+  const headingColor = isDark ? '#e2e8f0' : '#132334';
+  const mutedColor = isDark ? '#9cb0c4' : '#5f7282';
 
   return (
     <>
-      <div style={{ height: 1, background: isDark ? 'rgba(255,255,255,0.06)' : '#e2e8f0', margin: '24px 0' }} />
+      <div style={{ height: 1, background: isDark ? 'rgba(157,196,224,0.14)' : '#d8e2e8', margin: '24px 0' }} />
       <div>
         <h2 style={{ fontSize: 20, fontWeight: 600, color: headingColor, marginBottom: 4 }}>Dataset Analysis</h2>
         <p style={{ fontSize: 13, color: mutedColor, marginBottom: 18 }}>Click bars to filter proteins</p>
@@ -80,7 +80,7 @@ export default function DatasetCharts({
               <div ref={chart1Ref}>
                 <BarChart
                   xAxis={[{ scaleType: 'band', data: datasetStats.map(d => d.dataset), tickLabelStyle: { angle: -45, textAnchor: 'end', fontSize: 9 }, categoryGapRatio: 0.2, barGapRatio: 0.05 }]}
-                  series={[{ data: datasetStats.map(d => d.proteinCount), color: '#3b82f6', highlightScope: { highlighted: 'item', faded: 'global' } }]}
+                  series={[{ data: datasetStats.map(d => d.proteinCount), color: '#5f88ad', highlightScope: { highlighted: 'item', faded: 'global' } }]}
                   height={200}
                   width={380}
                   yAxis={[{ label: 'Proteins' }]}
@@ -117,7 +117,7 @@ export default function DatasetCharts({
               <div ref={chart2Ref}>
                 <BarChart
                   xAxis={[{ scaleType: 'band', data: datasetOverlap.map(d => d.overlapCount.toString()), label: 'Number of Datasets', categoryGapRatio: 0.2, barGapRatio: 0.05 }]}
-                  series={[{ data: datasetOverlap.map(d => d.proteinCount), color: '#22c55e', highlightScope: { highlighted: 'item', faded: 'global' } }]}
+                  series={[{ data: datasetOverlap.map(d => d.proteinCount), color: '#4f9b7e', highlightScope: { highlighted: 'item', faded: 'global' } }]}
                   height={200}
                   width={420}
                   yAxis={[{ label: 'Proteins' }]}
@@ -136,19 +136,19 @@ export default function DatasetCharts({
 
         {/* Active Filters */}
         {(selectedDatasets.length > 0 || selectedOverlaps.length > 0) && (
-          <div style={{ marginTop: 16, padding: '12px 16px', background: isDark ? 'rgba(59,130,246,0.06)' : '#f8fafc', borderRadius: 8, border: isDark ? '1px solid rgba(59,130,246,0.15)' : '1px solid #e2e8f0' }}>
+          <div style={{ marginTop: 16, padding: '12px 16px', background: isDark ? 'rgba(159,195,222,0.08)' : '#f3f7fa', borderRadius: 8, border: isDark ? '1px solid rgba(159,195,222,0.16)' : '1px solid #d8e2e8' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
               <div style={{ flex: 1 }}>
                 <strong style={{ color: headingColor, fontSize: 12, display: 'block', marginBottom: 4 }}>Active Filters</strong>
                 {selectedDatasets.length > 0 && (
                   <div style={{ marginBottom: selectedOverlaps.length > 0 ? 4 : 0, fontSize: 12 }}>
-                    <span style={{ color: isDark ? '#93c5fd' : '#2563eb', fontWeight: 600, marginRight: 6 }}>Datasets:</span>
+                    <span style={{ color: isDark ? '#c6d8e7' : '#325f86', fontWeight: 600, marginRight: 6 }}>Datasets:</span>
                     <span style={{ color: mutedColor }}>{selectedDatasets.join(', ')}</span>
                   </div>
                 )}
                 {selectedOverlaps.length > 0 && (
                   <div style={{ fontSize: 12 }}>
-                    <span style={{ color: isDark ? '#86efac' : '#16a34a', fontWeight: 600, marginRight: 6 }}>Overlap:</span>
+                    <span style={{ color: isDark ? '#a8d7c4' : '#2e7a62', fontWeight: 600, marginRight: 6 }}>Overlap:</span>
                     <span style={{ color: mutedColor }}>{selectedOverlaps.map(o => `${o} dataset${o !== 1 ? 's' : ''}`).join(', ')}</span>
                   </div>
                 )}

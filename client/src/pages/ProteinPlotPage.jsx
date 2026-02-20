@@ -30,7 +30,7 @@ export default function ProteinPlotPage() {
 
   const pageBgStyle = {
     minHeight: '100vh',
-    background: isDark ? '#0f172a' : '#f8fafc',
+    background: isDark ? '#0b1320' : '#f4f7f8',
   };
 
   const cardVariant = isDark ? 'dark' : 'light';
@@ -123,8 +123,8 @@ export default function ProteinPlotPage() {
       <main style={{ maxWidth: 1120, margin: '0 auto', padding: '40px 24px 64px' }}>
         {/* Header */}
         <header style={{ marginBottom: 24 }}>
-          <h1 style={{ fontSize: 32, fontWeight: 700, color: isDark ? '#e2e8f0' : '#1e293b', margin: 0 }}>{hvoId}</h1>
-          <p style={{ marginTop: 6, color: isDark ? '#94a3b8' : '#64748b', fontSize: 14 }}>Coverage overview</p>
+          <h1 style={{ fontSize: 36, fontWeight: 700, color: isDark ? '#e7eef8' : '#132334', margin: 0 }}>{hvoId}</h1>
+          <p style={{ marginTop: 6, color: isDark ? '#9cb0c4' : '#5f7282', fontSize: 15 }}>Coverage overview</p>
         </header>
 
         {/* 2x2 Grid Layout */}
@@ -179,8 +179,8 @@ export default function ProteinPlotPage() {
                       strokeWidth={10}
                       styles={buildStyles({
                         textColor: isDark ? '#e6edf7' : '#0f172a',
-                        pathColor: '#5b8df3',
-                        trailColor: isDark ? '#1a2438' : '#e2e8f0',
+                        pathColor: '#5f88ad',
+                        trailColor: isDark ? '#1a2438' : '#dce5ec',
                         textSize: '20px',
                         pathTransitionDuration: 1.0,
                       })}
@@ -189,12 +189,12 @@ export default function ProteinPlotPage() {
                 </Tooltip>
               </div>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ color: isDark ? '#89a2c0' : '#64748b', fontSize: 14, fontWeight: 500, marginBottom: 12 }}>
+                <div style={{ color: isDark ? '#9cb0c4' : '#5f7282', fontSize: 14, fontWeight: 500, marginBottom: 12 }}>
                   Sequence Coverage
                 </div>
-                <div style={{ display: 'flex', gap: 24, fontSize: 12, color: isDark ? '#7e92b5' : '#94a3b8' }}>
+                <div style={{ display: 'flex', gap: 24, fontSize: 12, color: isDark ? '#8ea4ba' : '#718493' }}>
                   <div>
-                    <div style={{ color: '#60A5FA', fontWeight: 600, fontSize: 18, marginBottom: 4 }}>{covered_length}</div>
+                    <div style={{ color: '#6b99bc', fontWeight: 600, fontSize: 18, marginBottom: 4 }}>{covered_length}</div>
                     <div>Covered AA</div>
                   </div>
                   <div>
