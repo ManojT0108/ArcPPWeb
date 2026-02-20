@@ -12,10 +12,10 @@ export default function DatasetsPage() {
 
   const pageBg = {
     minHeight: '100vh',
-    background: isDark ? '#0f172a' : '#f8fafc',
+    background: isDark ? '#0b1320' : '#f4f7f8',
   };
 
-  const linkStyle = { color: isDark ? '#8fb1ff' : '#0ea5e9', textDecoration: 'none' };
+  const linkStyle = { color: isDark ? '#a9c9df' : '#325f86', textDecoration: 'none' };
 
   useEffect(() => {
     let cancel = false;
@@ -43,10 +43,10 @@ export default function DatasetsPage() {
 
       <main style={{ maxWidth: 1120, margin: '0 auto', padding: '40px 24px 64px' }}>
         <header style={{ marginBottom: 18 }}>
-          <h1 style={{ fontSize: 40, fontWeight: 700, color: isDark ? '#e6edf7' : '#0f172a' }}>
+          <h1 style={{ fontSize: 42, fontWeight: 700, color: isDark ? '#e6edf7' : '#13212f', marginBottom: 2 }}>
             Datasets
           </h1>
-          <p style={{ color: isDark ? '#89a2c0' : '#64748b', marginTop: 6 }}>
+          <p style={{ color: isDark ? '#9cb0c4' : '#5f7282', marginTop: 6, fontSize: 15 }}>
             Title, Publication Details and Citations from ProteomeCentral.
           </p>
         </header>
@@ -96,11 +96,11 @@ export default function DatasetsPage() {
                                   display: 'inline-block',
                                   padding: '2px 8px',
                                   borderRadius: 999,
-                                  background: isDark ? 'rgba(143,177,255,0.12)' : 'rgba(14,165,233,0.1)',
-                                  color: isDark ? '#8fb1ff' : '#0ea5e9',
+                                  background: isDark ? 'rgba(159,195,222,0.12)' : 'rgba(50,95,134,0.1)',
+                                  color: isDark ? '#a9c9df' : '#325f86',
                                   fontSize: 12,
                                   textDecoration: 'none',
-                                  border: `1px solid ${isDark ? 'rgba(143,177,255,0.25)' : 'rgba(14,165,233,0.25)'}`,
+                                  border: `1px solid ${isDark ? 'rgba(159,195,222,0.25)' : 'rgba(50,95,134,0.25)'}`,
                                 }}
                                 title={c?.label || 'citation'}
                               >
@@ -131,7 +131,7 @@ function Th({ children, style, isDark }) {
         fontSize: 12,
         letterSpacing: '0.06em',
         color: isDark ? '#7e92b5' : '#64748b',
-        borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)'}`,
+        borderBottom: `1px solid ${isDark ? 'rgba(159,195,222,0.16)' : '#d8e2e8'}`,
         ...style,
       }}
     >
@@ -145,8 +145,8 @@ function Td({ children, mono, isDark }) {
     <td
       style={{
         padding: '12px 14px',
-        color: isDark ? '#e6edf7' : '#0f172a',
-        borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
+        color: isDark ? '#e6edf7' : '#13212f',
+        borderBottom: `1px solid ${isDark ? 'rgba(159,195,222,0.12)' : '#e1e8ed'}`,
         verticalAlign: 'top',
         fontFamily: mono ? 'ui-monospace, SFMono-Regular, Menlo, monospace' : undefined,
       }}

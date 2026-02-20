@@ -9,11 +9,11 @@ export default function CoverageOverview({ coverageData, coverageLoading }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 28 }}>
       <div style={{
-        background: isDark ? 'rgba(15,23,42,0.6)' : '#f8fafc',
-        borderRadius: 14,
+        background: isDark ? 'rgba(15,25,38,0.75)' : '#f7fafc',
+        borderRadius: 16,
         padding: '24px 36px',
-        boxShadow: isDark ? '0 1px 4px rgba(0,0,0,0.2)' : '0 1px 4px rgba(0,0,0,0.06)',
-        border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid #e2e8f0',
+        boxShadow: isDark ? '0 10px 22px rgba(3,9,16,0.35)' : '0 10px 22px rgba(17,39,58,0.08)',
+        border: isDark ? '1px solid rgba(157,196,224,0.14)' : '1px solid #d8e2e8',
         display: 'flex',
         alignItems: 'center',
         gap: 32,
@@ -30,9 +30,9 @@ export default function CoverageOverview({ coverageData, coverageLoading }) {
                 text={`${(coverageData[0].coveragePercent || 0).toFixed(1)}%`}
                 styles={buildStyles({
                   textSize: '20px',
-                  pathColor: '#3b82f6',
-                  textColor: isDark ? '#e2e8f0' : '#1e293b',
-                  trailColor: isDark ? 'rgba(59,130,246,0.12)' : '#e2e8f0',
+                  pathColor: '#5f88ad',
+                  textColor: isDark ? '#e2e8f0' : '#132334',
+                  trailColor: isDark ? 'rgba(95,136,173,0.2)' : '#dce5ec',
                   pathTransitionDuration: 1,
                   strokeLinecap: 'round',
                 })}
@@ -44,20 +44,20 @@ export default function CoverageOverview({ coverageData, coverageLoading }) {
               <div style={{
                 display: 'inline-block',
                 padding: '4px 10px',
-                background: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff',
+                background: isDark ? 'rgba(159,195,222,0.12)' : '#ecf3f8',
                 borderRadius: 6,
                 marginBottom: 12,
-                border: isDark ? '1px solid rgba(59,130,246,0.25)' : '1px solid #bfdbfe',
+                border: isDark ? '1px solid rgba(159,195,222,0.26)' : '1px solid #cfdce6',
               }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: isDark ? '#93c5fd' : '#2563eb', letterSpacing: '0.3px', textTransform: 'uppercase' }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: isDark ? '#c6d8e7' : '#325f86', letterSpacing: '0.3px', textTransform: 'uppercase' }}>
                   1 Species Available
                 </span>
               </div>
 
               <h3 style={{
-                fontSize: 22,
+                fontSize: 24,
                 fontWeight: 600,
-                color: isDark ? '#e2e8f0' : '#1e293b',
+                color: isDark ? '#e2e8f0' : '#132334',
                 margin: 0,
                 marginBottom: 6,
               }}>
@@ -66,7 +66,7 @@ export default function CoverageOverview({ coverageData, coverageLoading }) {
 
               <p style={{
                 fontSize: 14,
-                color: isDark ? '#94a3b8' : '#64748b',
+                color: isDark ? '#9cb0c4' : '#5f7282',
                 margin: 0,
                 lineHeight: 1.6,
               }}>

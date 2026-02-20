@@ -8,17 +8,15 @@ export default function GlassCard({ title, children, style, className = '', vari
       className={className}
       style={{
         position: 'relative',
-        borderRadius: 18,
-        padding: isLight ? '16px 18px' : '20px 24px',
+        borderRadius: 16,
+        padding: isLight ? '16px 18px' : '20px 22px',
         background: isLight
-          ? 'linear-gradient(180deg, rgba(255,255,255,.66), rgba(240,245,255,.55))'
-          : 'linear-gradient(180deg, rgba(26,34,54,.65), rgba(9,13,25,.65))',
-        border: `1px solid rgba(255,255,255,${isLight ? '0.12' : '0.10'})`,
+          ? 'linear-gradient(180deg, #ffffff, #f6f9fb)'
+          : 'linear-gradient(180deg, rgba(20,29,45,0.96), rgba(13,20,32,0.96))',
+        border: `1px solid ${isLight ? '#dbe4ea' : 'rgba(198,218,236,0.14)'}`,
         boxShadow: isLight
-          ? '0 10px 30px rgba(0,0,0,.35)'
-          : '0 12px 34px rgba(0,0,0,.55)',
-        backdropFilter: 'blur(10px)',
-        WebkitBackdropFilter: 'blur(10px)',
+          ? '0 10px 24px rgba(23, 42, 57, 0.08)'
+          : '0 10px 24px rgba(2, 8, 18, 0.44)',
         overflow: 'hidden',
         ...style,
       }}
@@ -27,14 +25,11 @@ export default function GlassCard({ title, children, style, className = '', vari
         <div
           aria-hidden
           style={{
-            content: '""',
             position: 'absolute',
-            inset: -1,
-            borderRadius: 20,
+            inset: 0,
             pointerEvents: 'none',
             background:
-              'radial-gradient(120% 180% at 50% 0%, rgba(255,255,255,.06), rgba(255,255,255,0) 55%), linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,0))',
-            mixBlendMode: 'screen',
+              'radial-gradient(160% 110% at 50% -20%, rgba(181,212,238,0.14), rgba(181,212,238,0) 56%)',
           }}
         />
       )}
@@ -43,7 +38,7 @@ export default function GlassCard({ title, children, style, className = '', vari
           style={{
             position: 'relative',
             fontWeight: 600,
-            color: isLight ? '#001833' : '#e5e7eb',
+            color: isLight ? '#1b2d3f' : '#e6edf7',
             margin: isLight ? '4px 6px 12px 6px' : '0 0 12px 0',
           }}
         >
