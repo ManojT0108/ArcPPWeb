@@ -19,7 +19,8 @@ const PAGE_SIZE = 25;
 export default function HomePage() {
   const navigate = useNavigate();
   const { isDark, toggleTheme } = useTheme();
-  const speciesChartRef = useRef(null);
+  const speciesCoverageChartRef = useRef(null);
+  const speciesProteinCountChartRef = useRef(null);
 
   const inputSx = {
     width: '100%',
@@ -47,12 +48,18 @@ export default function HomePage() {
     fontWeight: 600,
   };
 
-  const speciesOptions = [{ label: 'Haloferax volcanii', value: 'Haloferax volcanii' }];
-  const [speciesValue, setSpeciesValue] = useState(speciesOptions[0]);
-  const [showTable, setShowTable] = useState(false);
   const [coverageData, setCoverageData] = useState([]);
   const [coverageLoading, setCoverageLoading] = useState(true);
-  const [tableSpeciesFilter, setTableSpeciesFilter] = useState('Haloferax volcanii');
+  const speciesOptions = useMemo(
+    () =>
+      coverageData
+        .filter((s) => s?.species)
+        .map((s) => ({ label: s.species, value: s.species })),
+    [coverageData]
+  );
+  const [speciesValue, setSpeciesValue] = useState(null);
+  const [showTable, setShowTable] = useState(false);
+  const [tableSpeciesFilter, setTableSpeciesFilter] = useState('');
   const [datasetStats, setDatasetStats] = useState([]);
   const [datasetOverlap, setDatasetOverlap] = useState([]);
   const [selectedDatasets, setSelectedDatasets] = useState([]);
@@ -70,19 +77,47 @@ export default function HomePage() {
   const [sort, setSort] = useState({ key: 'hvoId', dir: 'asc' });
 
   useEffect(() => {
-    const color = isDark ? '#c8d6e5' : '#334155';
-    if (!speciesChartRef.current) return;
-    const apply = () => {
-      speciesChartRef.current?.querySelectorAll('text').forEach(el => {
-        el.setAttribute('fill', color);
-        el.style.fill = color;
-      });
+    const textColor = isDark ? '#f8fafc' : '#334155';
+    const axisColor = isDark ? '#f8fafc' : '#64748b';
+    const applyTo = (root) => {
+      if (!root) return null;
+      const apply = () => {
+        root.querySelectorAll('text').forEach((el) => {
+          el.setAttribute('fill', textColor);
+          el.style.fill = textColor;
+        });
+        root.querySelectorAll('line, path').forEach((el) => {
+          if (el.getAttribute('class')?.includes('MuiChartsAxis')) {
+            el.setAttribute('stroke', axisColor);
+            el.style.stroke = axisColor;
+          }
+        });
+      };
+      apply();
+      const observer = new MutationObserver(apply);
+      observer.observe(root, { childList: true, subtree: true });
+      return observer;
     };
-    apply();
-    const observer = new MutationObserver(apply);
-    observer.observe(speciesChartRef.current, { childList: true, subtree: true });
-    return () => observer.disconnect();
+
+    const o1 = applyTo(speciesCoverageChartRef.current);
+    const o2 = applyTo(speciesProteinCountChartRef.current);
+    return () => {
+      o1?.disconnect();
+      o2?.disconnect();
+    };
   }, [isDark, coverageData]);
+
+  useEffect(() => {
+    if (!speciesOptions.length) return;
+    const exists = speciesValue && speciesOptions.some((s) => s.value === speciesValue.value);
+    if (exists) return;
+
+    const first = speciesOptions[0];
+    setSpeciesValue(first);
+    setTableSpeciesFilter(first.value);
+    setShowTable(true);
+    setShowDatasetGraphs(true);
+  }, [speciesOptions, speciesValue]);
 
   const onSort = (key) => {
     setSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
@@ -222,6 +257,17 @@ export default function HomePage() {
     loadDatasets();
   }, [speciesValue]);
 
+  const speciesNames = coverageData.map((d) => d.species);
+  const coveragePercents = coverageData.map((d) => d.coveragePercent || 0);
+  const identifiedProteins = coverageData.map((d) => d.observedProteins || 0);
+  const selectedSpeciesStats = coverageData.find((d) => d.species === speciesValue?.value) || null;
+  const useAngledSpeciesTicks = speciesNames.length > 2;
+  const speciesChartWidth = Math.max(520, Math.min(920, speciesNames.length * 170));
+  const speciesTickStyle = useAngledSpeciesTicks
+    ? { angle: -30, textAnchor: 'end', fontSize: 11 }
+    : { angle: 0, textAnchor: 'middle', fontSize: 11 };
+  const speciesBottomMargin = useAngledSpeciesTicks ? 96 : 68;
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -320,7 +366,11 @@ export default function HomePage() {
           <p style={{ fontSize: 15, color: isDark ? '#9cb0c4' : '#5f7282', margin: 0, maxWidth: 680, lineHeight: 1.5 }}>Explore protein coverage, modifications, and datasets across archaeal species.</p>
 
           <div style={{ marginTop: 32 }}>
-            <CoverageOverview coverageData={coverageData} coverageLoading={coverageLoading} />
+            <CoverageOverview
+              coverageData={coverageData}
+              coverageLoading={coverageLoading}
+              selectedSpecies={selectedSpeciesStats}
+            />
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginBottom: 18 }}>
               <div>
@@ -359,57 +409,85 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Species Coverage Chart */}
-          {speciesValue && coverageData.length > 0 && coverageData[0] && (
-            <div style={{ marginTop: 28, display: 'flex', justifyContent: 'center' }}>
+          {speciesValue && coverageData.length > 0 && (
+            <div style={{ marginTop: 28, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 18 }}>
               <div style={{
                 background: isDark ? 'rgba(15,25,38,0.75)' : '#f7fafc',
                 borderRadius: 14,
                 padding: '20px 24px',
                 border: isDark ? '1px solid rgba(157,196,224,0.14)' : '1px solid #d8e2e8',
-                maxWidth: 680,
-                width: '100%'
               }}>
-                <h3 style={{ fontSize: 22, fontWeight: 600, color: isDark ? '#e2e8f0' : '#132334', marginBottom: 4, textAlign: 'center' }}>Species Proteome Coverage</h3>
-                <p style={{ fontSize: 13, color: isDark ? '#9cb0c4' : '#5f7282', marginBottom: 20, textAlign: 'center' }}>Click on a bar to explore proteins</p>
-
+                <h3 style={{ fontSize: 20, fontWeight: 600, color: isDark ? '#e2e8f0' : '#132334', marginBottom: 4, textAlign: 'center' }}>Species Proteome Coverage</h3>
+                <p style={{ fontSize: 13, color: isDark ? '#9cb0c4' : '#5f7282', marginBottom: 14, textAlign: 'center' }}>Click a bar to select species</p>
                 <div style={{ display: 'flex', justifyContent: 'center' }}>
-                  <div ref={speciesChartRef}>
+                  <div ref={speciesCoverageChartRef}>
                     <BarChart
                       xAxis={[{
-                        id: 'barCategories',
-                        data: ['Haloferax volcanii', 'Halobacterium salinarum', 'Sulfolobus solfataricus', 'Methanococcus maripaludis'],
+                        data: speciesNames,
                         scaleType: 'band',
-                        tickLabelStyle: { angle: -20, textAnchor: 'end', fontSize: 11 }
+                        label: 'Species',
+                        tickLabelStyle: speciesTickStyle,
                       }]}
-                      series={[{
-                        data: [coverageData[0].coveragePercent || 0, 0, 0, 0],
-                        color: '#5f88ad',
-                        highlightScope: { highlighted: 'item', faded: 'global' },
-                        valueFormatter: (value) => value > 0 ? `${value.toFixed(1)}%` : 'Coming soon'
-                      }]}
-                      height={220}
-                      width={540}
                       yAxis={[{ label: 'Coverage (%)' }]}
-                      margin={{ bottom: 70, left: 56, right: 16, top: 16 }}
+                      series={[{
+                        data: coveragePercents,
+                        color: '#5f88ad',
+                        valueFormatter: (value) => `${value.toFixed(1)}%`,
+                      }]}
+                      width={speciesChartWidth}
+                      height={250}
+                      margin={{ bottom: speciesBottomMargin, left: 56, right: 8, top: 10 }}
                       borderRadius={4}
                       slotProps={{ bar: { style: { cursor: 'pointer' } } }}
+                      sx={{
+                        '& .MuiChartsAxis-line, & .MuiChartsAxis-tick': { stroke: isDark ? '#f8fafc' : '#64748b' },
+                        '& .MuiChartsAxis-tickLabel': { fill: isDark ? '#f8fafc' : '#334155' },
+                      }}
                       onItemClick={(event, d) => {
-                        if (d.dataIndex === 0 && coverageData[0].coveragePercent > 0) {
-                          setShowTable(true);
-                          setShowDatasetGraphs(true);
-                        }
+                        const clickedSpecies = speciesNames[d.dataIndex];
+                        if (!clickedSpecies) return;
+                        setSpeciesValue({ label: clickedSpecies, value: clickedSpecies });
+                        setTableSpeciesFilter(clickedSpecies);
+                        setShowTable(true);
+                        setShowDatasetGraphs(true);
                       }}
                     />
                   </div>
                 </div>
+              </div>
 
-                <div style={{ marginTop: 16, padding: '10px 14px', background: isDark ? 'rgba(159,195,222,0.08)' : '#eef4f8', borderRadius: 8, border: isDark ? '1px solid rgba(159,195,222,0.2)' : '1px solid #cfdee8', textAlign: 'center' }}>
-                  <div style={{ fontSize: 13, color: isDark ? '#abc0d3' : '#455b6e' }}>
-                    <strong style={{ color: isDark ? '#c6d8e7' : '#325f86' }}>Click the Haloferax volcanii bar</strong> to explore protein table and datasets
-                  </div>
-                  <div style={{ fontSize: 11, color: isDark ? '#7f96ac' : '#76899a', marginTop: 4 }}>
-                    More species coming soon
+              <div style={{
+                background: isDark ? 'rgba(15,25,38,0.75)' : '#f7fafc',
+                borderRadius: 14,
+                padding: '20px 24px',
+                border: isDark ? '1px solid rgba(157,196,224,0.14)' : '1px solid #d8e2e8',
+              }}>
+                <h3 style={{ fontSize: 20, fontWeight: 600, color: isDark ? '#e2e8f0' : '#132334', marginBottom: 4, textAlign: 'center' }}>Identified Proteins by Species</h3>
+                <p style={{ fontSize: 13, color: isDark ? '#9cb0c4' : '#5f7282', marginBottom: 14, textAlign: 'center' }}>Total proteins identified per species</p>
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  <div ref={speciesProteinCountChartRef}>
+                    <BarChart
+                      xAxis={[{
+                        data: speciesNames,
+                        scaleType: 'band',
+                        label: 'Species',
+                        tickLabelStyle: speciesTickStyle,
+                      }]}
+                      yAxis={[{ label: 'Identified proteins' }]}
+                      series={[{
+                        data: identifiedProteins,
+                        color: '#4f9b7e',
+                        valueFormatter: (value) => `${value.toLocaleString()} proteins`,
+                      }]}
+                      width={speciesChartWidth}
+                      height={250}
+                      margin={{ bottom: speciesBottomMargin, left: 56, right: 8, top: 10 }}
+                      borderRadius={4}
+                      sx={{
+                        '& .MuiChartsAxis-line, & .MuiChartsAxis-tick': { stroke: isDark ? '#f8fafc' : '#64748b' },
+                        '& .MuiChartsAxis-tickLabel': { fill: isDark ? '#f8fafc' : '#334155' },
+                      }}
+                    />
                   </div>
                 </div>
               </div>
@@ -444,6 +522,7 @@ export default function HomePage() {
           fetchPage={fetchPage}
           onSort={onSort}
           sortIcon={sortIcon}
+          speciesOptions={speciesOptions}
           selectedDatasets={selectedDatasets}
           selectedOverlaps={selectedOverlaps}
         />

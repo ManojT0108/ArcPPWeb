@@ -7,6 +7,12 @@ const { getProteinCoverage } = require('../coverage');
 const { getPlotDataForProtein } = require('../plotGenerator');
 const { MOD_COLORS, HVO_RE, UNIPROT_RE } = require('../utils/constants');
 
+const canonicalModType = (rawType) => {
+  const normalized = String(rawType || '').trim().toLowerCase();
+  const match = Object.keys(MOD_COLORS).find((k) => k.toLowerCase() === normalized);
+  return match || null;
+};
+
 // HVO IDs from MongoDB
 router.get('/hvo-ids', async (req, res) => {
   try {
@@ -114,6 +120,7 @@ router.get('/proteins/:protein_id/sequence', async (req, res) => {
     }));
 
     const modifications = [];
+    const seenMods = new Set();
     const re = /(.+):(\d+)$/;
 
     for (const r of rows) {
@@ -124,24 +131,26 @@ router.get('/proteins/:protein_id/sequence', async (req, res) => {
           const m = re.exec(part.trim());
           if (!m) continue;
 
-          const type = m[1].trim();
+          const type = canonicalModType(m[1]);
+          if (!type) continue;
           const rel = parseInt(m[2], 10);
           const abs = r.start + rel - 1;
 
           if (abs < 1 || abs > sequence.length) continue;
 
-          if (MOD_COLORS[type]) {
-            modifications.push({
-              position: abs,
-              type: type,
-              relativePosition: rel,
-              peptideStart: r.start,
-              peptideEnd: r.stop,
-              peptideSequence: r.seq,
-              color: MOD_COLORS[type]
-            });
-            hasColoredMod = true;
-          }
+          const modKey = `${abs}|${type}`;
+          if (seenMods.has(modKey)) continue;
+          seenMods.add(modKey);
+          modifications.push({
+            position: abs,
+            type: type,
+            relativePosition: rel,
+            peptideStart: r.start,
+            peptideEnd: r.stop,
+            peptideSequence: r.seq,
+            color: MOD_COLORS[type]
+          });
+          hasColoredMod = true;
         }
       }
 

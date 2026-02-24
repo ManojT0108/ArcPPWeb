@@ -3,6 +3,12 @@ const Protein = require('../model/proteins');
 const Peptide = require('../model/peptides');
 const { MOD_COLORS } = require('../utils/constants');
 
+const canonicalModType = (rawType) => {
+  const normalized = String(rawType || '').trim().toLowerCase();
+  const match = Object.keys(MOD_COLORS).find((k) => k.toLowerCase() === normalized);
+  return match || null;
+};
+
 router.get('/plot/peptide-coverage/:protein_id', async (req, res) => {
   try {
     const proteinId = req.params.protein_id;
@@ -60,14 +66,16 @@ router.get('/plot/peptide-coverage/:protein_id', async (req, res) => {
       for (const part of String(r.mods).split(';')) {
         const m = re.exec(part.trim());
         if (!m) continue;
-        const type = m[1].trim();
-        if (!MOD_COLORS[type]) continue;
+        const type = canonicalModType(m[1]);
+        if (!type) continue;
         const rel = parseInt(m[2], 10);
         const abs = r.start + rel - 1;
         if (abs < 1 || abs > L) continue;
 
         if (!modsByPosition[abs]) modsByPosition[abs] = [];
-        modsByPosition[abs].push({ type, color: MOD_COLORS[type] });
+        if (!modsByPosition[abs].some((entry) => entry.type === type)) {
+          modsByPosition[abs].push({ type, color: MOD_COLORS[type] });
+        }
       }
     }
 
@@ -77,71 +85,41 @@ router.get('/plot/peptide-coverage/:protein_id', async (req, res) => {
     const allModTypes = new Set();
 
     for (const [pos, mods] of Object.entries(modsByPosition)) {
-      const position = parseInt(pos);
+      const position = parseInt(pos, 10);
+      const uniqueTypes = Array.from(new Set(mods.map((m) => m.type).filter(Boolean)));
+      uniqueTypes.forEach((type) => allModTypes.add(type));
 
-      mods.forEach(mod => allModTypes.add(mod.type));
-
-      if (mods.length === 1) {
-        const type = mods[0].type;
+      // Exactly one marker per (position, modification type).
+      uniqueTypes.forEach((type, idx) => {
         if (!modPositionsByType[type]) modPositionsByType[type] = [];
+        const companionTypes = uniqueTypes.filter((t) => t !== type);
+        const yOffset = uniqueTypes.length > 1 ? (idx - (uniqueTypes.length - 1) / 2) * 0.14 : 0;
+
         modPositionsByType[type].push({
           x: position,
-          y: 3,
-          text: `Modification: ${type}<br>Position: ${position}`
+          y: 3 + yOffset,
+          text: companionTypes.length
+            ? `${type} at position ${position}<br>(with ${companionTypes.join(', ')})`
+            : `${type} at position ${position}`
         });
-      } else {
-        const numMods = mods.length;
-
-        if (numMods === 2) {
-          mods.forEach((mod, idx) => {
-            const type = mod.type;
-            if (!modPositionsByType[type]) modPositionsByType[type] = [];
-            const offset = idx === 0 ? -0.15 : 0.15;
-            modPositionsByType[type].push({
-              x: position + offset,
-              y: 3,
-              text: `${type} at position ${position}<br>(with ${mods.filter(m => m.type !== type).map(m => m.type).join(', ')})`
-            });
-          });
-        } else if (numMods === 3) {
-          const offsets = [
-            { x: 0, y: 0.15 },
-            { x: -0.15, y: -0.1 },
-            { x: 0.15, y: -0.1 }
-          ];
-          mods.forEach((mod, idx) => {
-            const type = mod.type;
-            if (!modPositionsByType[type]) modPositionsByType[type] = [];
-            modPositionsByType[type].push({
-              x: position + offsets[idx].x,
-              y: 3 + offsets[idx].y,
-              text: `${type} at position ${position}<br>(with ${mods.filter(m => m.type !== type).map(m => m.type).join(', ')})`
-            });
-          });
-        } else {
-          const angleStep = (2 * Math.PI) / numMods;
-          const radius = 0.2;
-          mods.forEach((mod, idx) => {
-            const type = mod.type;
-            if (!modPositionsByType[type]) modPositionsByType[type] = [];
-            const angle = idx * angleStep;
-            modPositionsByType[type].push({
-              x: position + radius * Math.cos(angle),
-              y: 3 + radius * Math.sin(angle),
-              text: `${type} at position ${position}<br>(with ${mods.filter(m => m.type !== type).map(m => m.type).join(', ')})`
-            });
-          });
-        }
-      }
+      });
     }
 
     for (const modType of allModTypes) {
       const positions = modPositionsByType[modType] || [];
 
-      const x = positions.length > 0 ? positions.map(p => p.x) : [-1000];
-      const y = positions.length > 0 ? positions.map(p => p.y) : [3];
-      const text = positions.length > 0
-        ? positions.map(p => p.text)
+      const seenPoints = new Set();
+      const uniquePositions = positions.filter((p) => {
+        const key = `${modType}|${p.x}|${p.y}`;
+        if (seenPoints.has(key)) return false;
+        seenPoints.add(key);
+        return true;
+      });
+
+      const x = uniquePositions.length > 0 ? uniquePositions.map((p) => p.x) : [-1000];
+      const y = uniquePositions.length > 0 ? uniquePositions.map((p) => p.y) : [3];
+      const text = uniquePositions.length > 0
+        ? uniquePositions.map((p) => p.text)
         : [`Modification: ${modType}<br>(No positions)`];
 
       modTraces.push({

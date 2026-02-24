@@ -3,8 +3,9 @@ import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 import { useTheme } from '../ThemeContext';
 
-export default function CoverageOverview({ coverageData, coverageLoading }) {
+export default function CoverageOverview({ coverageData, coverageLoading, selectedSpecies }) {
   const { isDark } = useTheme();
+  const current = selectedSpecies || coverageData[0] || null;
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 28 }}>
@@ -22,12 +23,12 @@ export default function CoverageOverview({ coverageData, coverageLoading }) {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 150, color: isDark ? '#94a3b8' : '#64748b', fontSize: 15 }}>
             Loading coverage data...
           </div>
-        ) : coverageData.length > 0 && coverageData[0] ? (
+        ) : current ? (
           <>
             <div style={{ width: 130, height: 130 }}>
               <CircularProgressbar
-                value={coverageData[0].coveragePercent || 0}
-                text={`${(coverageData[0].coveragePercent || 0).toFixed(1)}%`}
+                value={current.coveragePercent || 0}
+                text={`${(current.coveragePercent || 0).toFixed(1)}%`}
                 styles={buildStyles({
                   textSize: '20px',
                   pathColor: '#5f88ad',
@@ -50,7 +51,7 @@ export default function CoverageOverview({ coverageData, coverageLoading }) {
                 border: isDark ? '1px solid rgba(159,195,222,0.26)' : '1px solid #cfdce6',
               }}>
                 <span style={{ fontSize: 11, fontWeight: 600, color: isDark ? '#c6d8e7' : '#325f86', letterSpacing: '0.3px', textTransform: 'uppercase' }}>
-                  1 Species Available
+                  {coverageData.length} Species Available
                 </span>
               </div>
 
@@ -61,7 +62,7 @@ export default function CoverageOverview({ coverageData, coverageLoading }) {
                 margin: 0,
                 marginBottom: 6,
               }}>
-                Haloferax volcanii
+                {current.species}
               </h3>
 
               <p style={{

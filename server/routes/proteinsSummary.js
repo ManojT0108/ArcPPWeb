@@ -27,7 +27,7 @@ router.get('/species/:speciesId/proteins-summary', async (req, res) => {
       console.log('   🔍 Checking Redis cache...');
 
       try {
-        const speciesPrefix = speciesId === 'Haloferax volcanii' ? 'HVO_' : '';
+        const speciesPrefix = /^haloferax volcanii$/i.test(speciesId) ? 'HVO_' : '';
 
         if (searchQuery.trim()) {
           const matchingIds = await searchProteins(searchQuery, speciesPrefix);
@@ -137,7 +137,7 @@ router.get('/species/:speciesId/proteins-summary', async (req, res) => {
     let proteinIdsFromModSearch = [];
     if (searchQuery.trim()) {
       const speciesProteinDocs = await Protein.find(
-        { protein_id: { $regex: `^${speciesId === 'Haloferax volcanii' ? 'HVO_' : ''}`, $options: 'i' } },
+        speciesToProteinIdFilter(speciesId),
         { _id: 1, protein_id: 1 }
       ).lean();
       const speciesObjectIds = speciesProteinDocs.map(p => p._id);
@@ -174,7 +174,7 @@ router.get('/species/:speciesId/proteins-summary', async (req, res) => {
     let total = await Protein.countDocuments(filter).exec();
 
     if (total === 0 && !searchQuery.trim() && selectedDatasets.length === 0 && selectedOverlaps.length === 0) {
-      filter = { protein_id: { $regex: '^HVO_\\d{4}$', $options: 'i' } };
+      filter = { protein_id: { $regex: '^HVO_', $options: 'i' } };
       total = await Protein.countDocuments(filter).exec();
     }
 
