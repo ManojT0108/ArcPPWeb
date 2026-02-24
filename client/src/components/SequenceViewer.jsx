@@ -11,6 +11,7 @@ export default function SequenceViewer({ sequence, modifications, onPositionClic
   const modificationColors = {};
   const modMap = {};
   const coveredPositions = new Set();
+  const seenModEntries = new Set();
 
   if (modifications && Array.isArray(modifications)) {
     modifications.forEach(mod => {
@@ -23,8 +24,12 @@ export default function SequenceViewer({ sequence, modifications, onPositionClic
       }
 
       if (pos) {
+        const normalizedType = String(type || '').trim().toLowerCase();
+        const key = `${pos}|${normalizedType}`;
+        if (seenModEntries.has(key)) return;
+        seenModEntries.add(key);
         if (!modMap[pos]) modMap[pos] = [];
-        modMap[pos].push(mod);
+        modMap[pos].push({ ...mod, type: String(type || '').trim() });
       }
 
       if (mod.peptideStart && mod.peptideEnd) {

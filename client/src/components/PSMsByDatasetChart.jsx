@@ -92,8 +92,8 @@ function PSMsByDatasetChart({ proteinId, mode = 'dark' }) {
 
   const isDark = mode === 'dark';
   const cardVariant = isDark ? 'dark' : 'light';
-  const mutedColor = isDark ? '#89a2c0' : '#64748b';
-  const axisColor = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)';
+  const mutedColor = isDark ? '#c7d8e8' : '#111827';
+  const axisColor = isDark ? 'rgba(248,250,252,0.9)' : '#111827';
 
   // Loading state
   if (loading) {
@@ -149,19 +149,21 @@ function PSMsByDatasetChart({ proteinId, mode = 'dark' }) {
   return (
     <GlassCard title="PSMs by Dataset" style={cardStyle} variant={cardVariant}>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        <ResponsiveContainer width="100%" height={240}>
-          <BarChart data={chartData} margin={{ top: 12, right: 10, left: 10, bottom: 80 }}>
+        <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+          <ResponsiveContainer width="96%" height={270}>
+          <BarChart data={chartData} margin={{ top: 8, right: 24, left: 8, bottom: 96 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'} vertical={false} />
 
             <XAxis
               dataKey="dataset"
               angle={-45}
               textAnchor="end"
-              height={80}
+              height={92}
               interval={0}
               tick={{ fill: mutedColor, fontSize: 11 }}
               stroke={axisColor}
               axisLine={{ stroke: axisColor }}
+              label={{ value: 'Dataset identifier', position: 'insideBottom', offset: -4, fill: mutedColor, fontSize: 12 }}
             />
 
             <YAxis
@@ -169,6 +171,7 @@ function PSMsByDatasetChart({ proteinId, mode = 'dark' }) {
               stroke={axisColor}
               axisLine={{ stroke: axisColor }}
               tickLine={{ stroke: axisColor }}
+              label={{ value: 'PSMs', angle: -90, position: 'insideLeft', fill: mutedColor, fontSize: 12 }}
             />
 
             <Tooltip content={<CustomTooltip isDark={isDark} />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }} />
@@ -180,6 +183,7 @@ function PSMsByDatasetChart({ proteinId, mode = 'dark' }) {
             </Bar>
           </BarChart>
         </ResponsiveContainer>
+        </div>
 
         {/* Footer info */}
         <div style={{

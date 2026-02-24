@@ -11,32 +11,40 @@ function makeGlassTheme(mode = 'light') {
       : mode === 'dark';
 
   const fg = isDark ? '#e5e7eb' : '#0b1b3a';
-  const tick = isDark ? '#cbd5e1' : '#3b4a6b';
+  const tick = isDark ? '#f8fafc' : '#111827';
   const grid = isDark ? 'rgba(148,163,184,0.15)' : 'rgba(51,65,85,0.12)';
   const gridY = isDark ? 'rgba(148,163,184,0.08)' : 'rgba(51,65,85,0.08)';
-  const axisLine = isDark ? 'rgba(148,163,184,0.25)' : 'rgba(51,65,85,0.25)';
+  const axisLine = isDark ? 'rgba(248,250,252,0.85)' : '#111827';
 
   return {
     paper_bgcolor: 'rgba(0,0,0,0)',
     plot_bgcolor: 'rgba(0,0,0,0)',
     font: { family: 'Inter, ui-sans-serif, system-ui', color: fg },
     margin: { l: 140, r: 20, t: 36, b: 40 },
-    xaxis: {
-      automargin: true,
-      tickfont: { size: 12, color: tick },
-      gridcolor: grid,
-      zeroline: false,
-      linecolor: axisLine,
-      tickmode: 'auto',
-      tickformat: 'd',
-    },
-    yaxis: {
-      automargin: true,
-      tickfont: { size: 12, color: tick },
-      gridcolor: gridY,
-      zeroline: false,
-      linecolor: axisLine,
-    },
+      xaxis: {
+        automargin: true,
+        tickfont: { size: 12, color: tick },
+        gridcolor: grid,
+        zeroline: false,
+        showline: true,
+        linewidth: 1.2,
+        linecolor: axisLine,
+        tickcolor: axisLine,
+        ticks: 'outside',
+        tickmode: 'auto',
+        tickformat: 'd',
+      },
+      yaxis: {
+        automargin: true,
+        tickfont: { size: 12, color: tick },
+        gridcolor: gridY,
+        zeroline: false,
+        showline: true,
+        linewidth: 1.2,
+        linecolor: axisLine,
+        tickcolor: axisLine,
+        ticks: 'outside',
+      },
     legend: { bgcolor: 'rgba(0,0,0,0)', borderwidth: 0, font: { color: tick } },
     hovermode: 'closest',
   };
@@ -146,6 +154,7 @@ const PeptideCoveragePlot = forwardRef(({
     return {
       ...glass,
       ...(spec.layout || {}),
+      uirevision: hvoId,
       margin: { ...glass.margin, ...(spec.layout?.margin || {}) },
       xaxis: {
         ...glass.xaxis,
@@ -154,11 +163,35 @@ const PeptideCoveragePlot = forwardRef(({
         tickmode: 'auto',
         tickformat: 'd',
         showticklabels: true,
+        showline: true,
+        linecolor: glass.xaxis.linecolor,
+        tickcolor: glass.xaxis.tickcolor,
       },
-      yaxis: { ...glass.yaxis, ...(spec.layout?.yaxis || {}) },
+      yaxis: {
+        ...glass.yaxis,
+        ...(spec.layout?.yaxis || {}),
+        showline: true,
+        linecolor: glass.yaxis.linecolor,
+        tickcolor: glass.yaxis.tickcolor,
+      },
       dragmode: 'pan',
     };
-  }, [spec, glass]);
+  }, [spec, glass, hvoId]);
+
+  const sanitizedData = useMemo(() => {
+    if (!spec?.data) return [];
+    return spec.data.map((trace) => {
+      if (!Array.isArray(trace?.text)) return trace;
+      return {
+        ...trace,
+        text: trace.text.map((entry) =>
+          String(entry)
+            .replace(/<br>\(with\s*\)/gi, '')
+            .replace(/\(with\s*\)/gi, '')
+        ),
+      };
+    });
+  }, [spec]);
 
   const config = {
     responsive: true,
@@ -201,7 +234,7 @@ const PeptideCoveragePlot = forwardRef(({
     <GlassCard title={title} variant={glassVariant}>
       <Plot
         ref={plotRef}
-        data={spec.data}
+        data={sanitizedData}
         layout={layout}
         config={config}
         style={{ width: '100%', height: 400, borderRadius: 14 }}

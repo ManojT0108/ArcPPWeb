@@ -9,6 +9,33 @@ const { MOD_COLORS } = require('../utils/constants');
 let coverageCache = null;
 let cacheTimestamp = null;
 const CACHE_DURATION = 5 * 60 * 1000;
+const ESCAPE_REGEX = (v) => String(v || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+async function buildSpeciesConfigs() {
+  const fromSpeciesId = await Protein.aggregate([
+    {
+      $match: {
+        species_id: { $exists: true, $ne: null, $ne: '' },
+      },
+    },
+    {
+      $group: {
+        _id: '$species_id',
+        proteins: { $sum: 1 },
+      },
+    },
+    { $sort: { proteins: -1 } },
+  ]).exec();
+
+  if (fromSpeciesId.length > 0) {
+    return fromSpeciesId.map((row) => ({
+      name: String(row._id).trim(),
+      filter: { species_id: { $regex: `^${ESCAPE_REGEX(String(row._id).trim())}$`, $options: 'i' } },
+    }));
+  }
+
+  return [{ name: 'Haloferax volcanii', filter: { protein_id: { $regex: '^HVO_', $options: 'i' } } }];
+}
 
 // Species coverage stats
 router.get('/species/coverage-stats', async (req, res) => {
@@ -20,9 +47,7 @@ router.get('/species/coverage-stats', async (req, res) => {
     }
 
     console.log('🔄 Calculating coverage stats (this may take a moment)...');
-    const speciesConfigs = [
-      { name: 'Haloferax volcanii', idPrefix: 'HVO_' },
-    ];
+    const speciesConfigs = await buildSpeciesConfigs();
 
     const qValueThreshold = 0.005;
     const results = [];
@@ -31,10 +56,7 @@ router.get('/species/coverage-stats', async (req, res) => {
       try {
         console.log(`Processing ${config.name}...`);
 
-        const proteinDocs = await Protein.find(
-          { protein_id: { $regex: `^${config.idPrefix.replace(/_/g, '_')}`, $options: 'i' } },
-          { _id: 1, protein_id: 1, sequence: 1 }
-        ).lean();
+        const proteinDocs = await Protein.find(config.filter, { _id: 1, protein_id: 1, sequence: 1 }).lean();
 
         const proteinLengths = {};
         for (const p of proteinDocs) {
@@ -128,12 +150,14 @@ router.get('/species/:speciesId/dataset-stats', async (req, res) => {
     const pipeline = [
       { $match: filter },
       { $unwind: '$dataset_ids' },
+      { $match: { dataset_ids: { $type: 'string', $ne: '' } } },
       {
         $group: {
           _id: '$dataset_ids',
-          proteinCount: { $sum: 1 }
+          proteins: { $addToSet: '$protein_id' }
         }
       },
+      { $project: { _id: 1, proteinCount: { $size: '$proteins' } } },
       { $sort: { proteinCount: -1 } },
       {
         $project: {
@@ -166,7 +190,7 @@ router.get('/species/:speciesId/dataset-overlap', async (req, res) => {
           datasetCount: {
             $cond: {
               if: { $isArray: '$dataset_ids' },
-              then: { $size: '$dataset_ids' },
+              then: { $size: { $setUnion: ['$dataset_ids', []] } },
               else: 0
             }
           }

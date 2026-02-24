@@ -1,16 +1,45 @@
+const escapeRegex = (value) => String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const SPECIES_ALIASES = {
+  haloferax_volcanii: {
+    prefixes: ['HVO_'],
+    speciesNames: ['Haloferax volcanii'],
+  },
+  halobacterium_salinarum: {
+    prefixes: ['VNG_', 'HBSAL_'],
+    speciesNames: ['Halobacterium salinarum'],
+  },
+  sulfolobus_solfataricus: {
+    prefixes: ['SSO_'],
+    speciesNames: ['Sulfolobus solfataricus'],
+  },
+  methanococcus_maripaludis: {
+    prefixes: ['MMP_', 'MMP1_'],
+    speciesNames: ['Methanococcus maripaludis'],
+  },
+};
+
 const speciesToProteinIdFilter = (raw) => {
   if (!raw) return {};
 
-  const key = String(raw)
-    .trim()
-    .toLowerCase()
-    .replace(/[\s-]+/g, '_');
+  const rawText = String(raw).trim();
+  const key = rawText.toLowerCase().replace(/[\s-]+/g, '_');
+  const alias = SPECIES_ALIASES[key];
+  const conditions = [];
 
-  const aliases = {
-    haloferax_volcanii: { protein_id: { $regex: '^HVO_\\d{4}$', $options: 'i' } },
-  };
+  if (alias) {
+    alias.prefixes.forEach((prefix) => {
+      conditions.push({ protein_id: { $regex: `^${escapeRegex(prefix)}`, $options: 'i' } });
+    });
+    alias.speciesNames.forEach((name) => {
+      conditions.push({ species_id: { $regex: `^${escapeRegex(name)}$`, $options: 'i' } });
+    });
+  } else {
+    conditions.push({ species_id: { $regex: `^${escapeRegex(rawText)}$`, $options: 'i' } });
+  }
 
-  return aliases[key] || {};
+  if (conditions.length === 1) return conditions[0];
+  return { $or: conditions };
 };
 
 module.exports = { speciesToProteinIdFilter };

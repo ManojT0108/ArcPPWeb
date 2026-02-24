@@ -32,6 +32,7 @@ export default function ProteinTable({
   fetchPage,
   onSort,
   sortIcon,
+  speciesOptions = [],
   selectedDatasets,
   selectedOverlaps,
 }) {
@@ -125,7 +126,9 @@ export default function ProteinTable({
                 }
               } : {}}
             >
-              <MenuItem value="Haloferax volcanii">Haloferax volcanii</MenuItem>
+              {(speciesOptions.length > 0 ? speciesOptions : [{ label: 'Haloferax volcanii', value: 'Haloferax volcanii' }]).map((species) => (
+                <MenuItem key={species.value} value={species.value}>{species.label}</MenuItem>
+              ))}
             </Select>
           </FormControl>
         </div>

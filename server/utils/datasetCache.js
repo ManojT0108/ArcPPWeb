@@ -4,6 +4,9 @@ const cheerio = require('cheerio');
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12h
 const DATASET_CACHE = new Map();
 const SOURCE_BASE = 'https://proteomecentral.proteomexchange.org';
+const SCRAPE_TIMEOUT_MS = 6000;
+const REACHABILITY_BACKOFF_MS = 15 * 60 * 1000;
+let unreachableUntilTs = 0;
 
 function preferredDatasetUrl(datasetId) {
   const id = String(datasetId || '').trim().toUpperCase();
@@ -52,20 +55,40 @@ function cacheSet(id, data) {
   DATASET_CACHE.set(id, { ts: Date.now(), data });
 }
 
+function fallbackSummary(datasetId) {
+  return {
+    id: datasetId,
+    title: null,
+    firstPublicationRow: null,
+    citations: [],
+    sourceUrl: preferredDatasetUrl(datasetId),
+  };
+}
+
 async function scrapeProteomeCentral(datasetId) {
   const cached = cacheGet(datasetId);
   if (cached) return cached;
+  if (Date.now() < unreachableUntilTs) return fallbackSummary(datasetId);
 
   const url = `${SOURCE_BASE}/cgi/GetDataset?ID=${encodeURIComponent(
     datasetId
   )}`;
-  const { data: html } = await axios.get(url, {
-    headers: {
-      'User-Agent': 'ArcPP/1.0 (academic; mailto:lab@example.org)',
-      'Accept-Language': 'en-US,en;q=0.9',
-    },
-    timeout: 20000,
-  });
+  let html = '';
+  try {
+    const response = await axios.get(url, {
+      headers: {
+        'User-Agent': 'ArcPP/1.0 (academic; mailto:lab@example.org)',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+      timeout: SCRAPE_TIMEOUT_MS,
+    });
+    html = response.data;
+  } catch (err) {
+    if (['ENOTFOUND', 'ECONNREFUSED', 'ECONNABORTED', 'ETIMEDOUT'].includes(err?.code)) {
+      unreachableUntilTs = Date.now() + REACHABILITY_BACKOFF_MS;
+    }
+    throw err;
+  }
 
   const $ = cheerio.load(html);
   const norm = (s) => (s || '').replace(/\s+/g, ' ').trim();
@@ -152,13 +175,7 @@ async function scrapeProteomeCentral(datasetId) {
     }
   }
 
-  const result = {
-    id: datasetId,
-    title,
-    firstPublicationRow,
-    citations,
-    sourceUrl: preferredDatasetUrl(datasetId),
-  };
+  const result = { ...fallbackSummary(datasetId), title, firstPublicationRow, citations };
   cacheSet(datasetId, result);
   return result;
 }
@@ -166,6 +183,10 @@ async function scrapeProteomeCentral(datasetId) {
 async function fetchSummariesBatched(ids, batchSize = 4) {
   const out = [];
   for (let i = 0; i < ids.length; i += batchSize) {
+    if (Date.now() < unreachableUntilTs) {
+      out.push(...ids.slice(i).map((id) => fallbackSummary(id)));
+      break;
+    }
     const batch = ids.slice(i, i + batchSize);
     const results = await Promise.all(
       batch.map(async (id) => {
@@ -173,13 +194,7 @@ async function fetchSummariesBatched(ids, batchSize = 4) {
           return await scrapeProteomeCentral(id);
         } catch (err) {
           console.warn('Scrape failed for', id, err.message);
-          return {
-            id,
-            title: null,
-            firstPublicationRow: null,
-            citations: [],
-            sourceUrl: preferredDatasetUrl(id),
-          };
+          return fallbackSummary(id);
         }
       })
     );
