@@ -148,59 +148,55 @@ function PSMsByDatasetChart({ proteinId, mode = 'dark' }) {
   // Main render
   return (
     <GlassCard title="PSMs by Dataset" style={cardStyle} variant={cardVariant}>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
-          <ResponsiveContainer width="96%" height={270}>
-          <BarChart data={chartData} margin={{ top: 8, right: 24, left: 8, bottom: 96 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'} vertical={false} />
+      <ResponsiveContainer width="100%" height={280}>
+        <BarChart data={chartData} margin={{ top: 8, right: 16, left: 8, bottom: 50 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'} vertical={false} />
 
-            <XAxis
-              dataKey="dataset"
-              angle={-45}
-              textAnchor="end"
-              height={92}
-              interval={0}
-              tick={{ fill: mutedColor, fontSize: 11 }}
-              stroke={axisColor}
-              axisLine={{ stroke: axisColor }}
-              label={{ value: 'Dataset identifier', position: 'insideBottom', offset: -4, fill: mutedColor, fontSize: 12 }}
-            />
+          <XAxis
+            dataKey="dataset"
+            angle={-45}
+            textAnchor="end"
+            height={52}
+            interval={0}
+            tick={{ fill: mutedColor, fontSize: 11 }}
+            axisLine={{ stroke: axisColor }}
+            tickLine={false}
+            tickFormatter={(v) => v.startsWith('PXD') ? v.slice(3) : v}
+            label={{ value: 'Dataset identifier', position: 'insideBottom', offset: -2, fill: mutedColor, fontSize: 12 }}
+          />
 
-            <YAxis
-              tick={{ fill: mutedColor, fontSize: 11 }}
-              stroke={axisColor}
-              axisLine={{ stroke: axisColor }}
-              tickLine={{ stroke: axisColor }}
-              label={{ value: 'PSMs', angle: -90, position: 'insideLeft', fill: mutedColor, fontSize: 12 }}
-            />
+          <YAxis
+            tick={{ fill: mutedColor, fontSize: 11 }}
+            axisLine={false}
+            tickLine={false}
+            label={{ value: 'PSMs', angle: -90, position: 'insideLeft', fill: mutedColor, fontSize: 12 }}
+          />
 
-            <Tooltip content={<CustomTooltip isDark={isDark} />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }} />
+          <Tooltip content={<CustomTooltip isDark={isDark} />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }} />
 
-            <Bar dataKey="PSMs" radius={[6, 6, 0, 0]} animationDuration={800}>
-              {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={getBarColor(index, chartData.length)} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+          <Bar dataKey="PSMs" radius={[6, 6, 0, 0]} animationDuration={800}>
+            {chartData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={getBarColor(index, chartData.length)} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+
+      {/* Footer info */}
+      <div style={{
+        paddingTop: 12,
+        borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        fontSize: 11,
+        color: mutedColor,
+      }}>
+        <div>
+          <strong style={{ color: isDark ? '#e6edf7' : '#0f172a', fontSize: 12 }}>{chartData.length}-datasets</strong> identified
         </div>
-
-        {/* Footer info */}
-        <div style={{
-          paddingTop: 12,
-          borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontSize: 11,
-          color: mutedColor,
-        }}>
-          <div>
-            <strong style={{ color: isDark ? '#e6edf7' : '#0f172a', fontSize: 12 }}>{chartData.length}-datasets</strong> identified
-          </div>
-          <div style={{ fontSize: 10, color: mutedColor, textAlign: 'right', maxWidth: '60%' }}>
-            Tip: Use arrow keys to pan, Home to reset, or click
-          </div>
+        <div style={{ fontSize: 10, color: mutedColor, textAlign: 'right', maxWidth: '60%' }}>
+          Tip: Use arrow keys to pan, Home to reset, or click
         </div>
       </div>
     </GlassCard>

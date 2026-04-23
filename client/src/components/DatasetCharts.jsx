@@ -89,44 +89,43 @@ export default function DatasetCharts({
             {datasetRows.length === 0 ? (
               <div style={{ padding: 24, color: mutedColor, textAlign: 'center', background: isDark ? 'rgba(255,255,255,0.03)' : '#f8fafc', borderRadius: 8 }}>No data</div>
             ) : (
-              <div style={{ width: '100%', height: 286, display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}>
-                <div style={{ width: '100%', transform: 'translateY(36px)' }}>
-                  <ResponsiveContainer width="100%" height={276}>
-                    <ReBarChart data={datasetRows} margin={{ top: 10, right: 36, left: 36, bottom: 84 }}>
-                      <ReCartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'} vertical={false} />
-                      <ReXAxis
-                        dataKey="dataset"
-                        interval={0}
-                        angle={-45}
-                        textAnchor="end"
-                        height={78}
-                        tick={{ fill: axisStroke, fontSize: 10 }}
-                        stroke={axisStroke}
-                        label={{ value: 'Dataset', position: 'insideBottom', offset: -1, fill: axisStroke, fontSize: 12 }}
-                      />
-                      <ReYAxis
-                        tick={{ fill: axisStroke, fontSize: 11 }}
-                        stroke={axisStroke}
-                        label={{ value: 'Proteins', angle: -90, position: 'insideLeft', fill: axisStroke, fontSize: 12 }}
-                      />
-                      <ReTooltip content={<ChartTooltip isDark={isDark} labelKey="dataset" valueLabel="proteins" />} />
-                      <ReBar
-                        dataKey="value"
-                        radius={[4, 4, 0, 0]}
-                        onClick={(row) => {
-                          const clickedDataset = row?.dataset;
-                          if (!clickedDataset) return;
-                          setSelectedDatasets((prev) => (prev.includes(clickedDataset) ? prev.filter((d) => d !== clickedDataset) : [...prev, clickedDataset]));
-                        }}
-                      >
-                        {datasetRows.map((entry) => (
-                          <ReCell key={entry.dataset} fill="#5f88ad" style={{ cursor: 'pointer' }} />
-                        ))}
-                      </ReBar>
-                    </ReBarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
+              <ResponsiveContainer width="100%" height={300}>
+                <ReBarChart data={datasetRows} margin={{ top: 8, right: 16, left: 8, bottom: 50 }}>
+                  <ReCartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'} vertical={false} />
+                  <ReXAxis
+                    dataKey="dataset"
+                    interval={0}
+                    angle={-45}
+                    textAnchor="end"
+                    height={52}
+                    tick={{ fill: axisStroke, fontSize: 10 }}
+                    axisLine={{ stroke: axisStroke }}
+                    tickLine={false}
+                    tickFormatter={(v) => v.startsWith('PXD') ? v.slice(3) : v}
+                    label={{ value: 'Dataset', position: 'insideBottom', offset: -2, fill: axisStroke, fontSize: 12 }}
+                  />
+                  <ReYAxis
+                    tick={{ fill: axisStroke, fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                    label={{ value: 'Proteins', angle: -90, position: 'insideLeft', fill: axisStroke, fontSize: 12 }}
+                  />
+                  <ReTooltip content={<ChartTooltip isDark={isDark} labelKey="dataset" valueLabel="proteins" />} />
+                  <ReBar
+                    dataKey="value"
+                    radius={[4, 4, 0, 0]}
+                    onClick={(row) => {
+                      const clickedDataset = row?.dataset;
+                      if (!clickedDataset) return;
+                      setSelectedDatasets((prev) => (prev.includes(clickedDataset) ? prev.filter((d) => d !== clickedDataset) : [...prev, clickedDataset]));
+                    }}
+                  >
+                    {datasetRows.map((entry) => (
+                      <ReCell key={entry.dataset} fill="#5f88ad" style={{ cursor: 'pointer' }} />
+                    ))}
+                  </ReBar>
+                </ReBarChart>
+              </ResponsiveContainer>
             )}
           </div>
 
@@ -147,41 +146,39 @@ export default function DatasetCharts({
             {overlapRows.length === 0 ? (
               <div style={{ padding: 24, color: mutedColor, textAlign: 'center', background: isDark ? 'rgba(255,255,255,0.03)' : '#f8fafc', borderRadius: 8 }}>No data</div>
             ) : (
-              <div style={{ width: '100%', height: 320, display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}>
-                <div style={{ width: '100%', transform: 'translateY(10px)' }}>
-                  <ResponsiveContainer width="100%" height={276}>
-                    <ReBarChart data={overlapRows} margin={{ top: 10, right: 36, left: 36, bottom: 84 }}>
-                      <ReCartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'} vertical={false} />
-                      <ReXAxis
-                        dataKey="overlapCount"
-                        interval={0}
-                        tick={{ fill: axisStroke, fontSize: 11 }}
-                        stroke={axisStroke}
-                        label={{ value: 'Number of Datasets', position: 'insideBottom', offset: -1, fill: axisStroke, fontSize: 12 }}
-                      />
-                      <ReYAxis
-                        tick={{ fill: axisStroke, fontSize: 11 }}
-                        stroke={axisStroke}
-                        label={{ value: 'Proteins', angle: -90, position: 'insideLeft', fill: axisStroke, fontSize: 12 }}
-                      />
-                      <ReTooltip content={<ChartTooltip isDark={isDark} labelKey="overlapCount" valueLabel="proteins" />} />
-                      <ReBar
-                        dataKey="value"
-                        radius={[4, 4, 0, 0]}
-                        onClick={(row) => {
-                          const clickedOverlap = Number(row?.overlapCount);
-                          if (!Number.isFinite(clickedOverlap)) return;
-                          setSelectedOverlaps((prev) => (prev.includes(clickedOverlap) ? prev.filter((o) => o !== clickedOverlap) : [...prev, clickedOverlap]));
-                        }}
-                      >
-                        {overlapRows.map((entry) => (
-                          <ReCell key={entry.overlapCount} fill="#4f9b7e" style={{ cursor: 'pointer' }} />
-                        ))}
-                      </ReBar>
-                    </ReBarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
+              <ResponsiveContainer width="100%" height={300}>
+                <ReBarChart data={overlapRows} margin={{ top: 8, right: 16, left: 8, bottom: 40 }}>
+                  <ReCartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'} vertical={false} />
+                  <ReXAxis
+                    dataKey="overlapCount"
+                    interval={0}
+                    tick={{ fill: axisStroke, fontSize: 11 }}
+                    axisLine={{ stroke: axisStroke }}
+                    tickLine={false}
+                    label={{ value: 'Number of Datasets', position: 'insideBottom', offset: -4, fill: axisStroke, fontSize: 12 }}
+                  />
+                  <ReYAxis
+                    tick={{ fill: axisStroke, fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                    label={{ value: 'Proteins', angle: -90, position: 'insideLeft', fill: axisStroke, fontSize: 12 }}
+                  />
+                  <ReTooltip content={<ChartTooltip isDark={isDark} labelKey="overlapCount" valueLabel="proteins" />} />
+                  <ReBar
+                    dataKey="value"
+                    radius={[4, 4, 0, 0]}
+                    onClick={(row) => {
+                      const clickedOverlap = Number(row?.overlapCount);
+                      if (!Number.isFinite(clickedOverlap)) return;
+                      setSelectedOverlaps((prev) => (prev.includes(clickedOverlap) ? prev.filter((o) => o !== clickedOverlap) : [...prev, clickedOverlap]));
+                    }}
+                  >
+                    {overlapRows.map((entry) => (
+                      <ReCell key={entry.overlapCount} fill="#4f9b7e" style={{ cursor: 'pointer' }} />
+                    ))}
+                  </ReBar>
+                </ReBarChart>
+              </ResponsiveContainer>
             )}
           </div>
         </div>

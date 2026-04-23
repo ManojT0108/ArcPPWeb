@@ -14,10 +14,8 @@ router.get('/plot/peptide-coverage/:protein_id', async (req, res) => {
     const proteinId = req.params.protein_id;
 
     // 1) get sequence + peptides from MongoDB
-    const proteinDoc = await Protein.findOne(
-      { protein_id: proteinId },
-      { _id: 1, sequence: 1 }
-    ).lean();
+    let proteinDoc = await Protein.findOne({ hvo_id: proteinId }, { _id: 1, sequence: 1 }).lean();
+    if (!proteinDoc) proteinDoc = await Protein.findOne({ protein_id: proteinId }, { _id: 1, sequence: 1 }).lean();
     if (!proteinDoc || !proteinDoc.sequence) return res.status(404).json({ error: 'Protein sequence not found' });
     const seq = proteinDoc.sequence;
     const L = seq.length;

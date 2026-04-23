@@ -1,85 +1,130 @@
 import React from 'react';
-import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
-import 'react-circular-progressbar/dist/styles.css';
 import { useTheme } from '../ThemeContext';
 
-export default function CoverageOverview({ coverageData, coverageLoading, selectedSpecies }) {
+export default function CoverageOverview({ coverageLoading, selectedSpecies }) {
   const { isDark } = useTheme();
-  const current = selectedSpecies || coverageData[0] || null;
+
+  const bg     = isDark ? 'rgba(15,25,40,0.8)' : '#ffffff';
+  const border = isDark ? '1px solid rgba(157,196,224,0.14)' : '1px solid #dce5ec';
+  const shadow = isDark ? '0 8px 20px rgba(3,9,16,0.32)' : '0 8px 20px rgba(17,39,58,0.07)';
+
+  const baseCard = {
+    borderRadius: 14,
+    padding: '22px 28px',
+    background: bg,
+    border,
+    boxShadow: shadow,
+    marginBottom: 28,
+  };
+
+  if (coverageLoading) {
+    return (
+      <div style={{ ...baseCard, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <div style={{ height: 10, width: 110, borderRadius: 6, background: isDark ? '#1e304a' : '#dde6ee', marginBottom: 12 }} />
+          <div style={{ height: 22, width: 220, borderRadius: 6, background: isDark ? '#1e304a' : '#dde6ee' }} />
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ height: 10, width: 120, borderRadius: 6, background: isDark ? '#1e304a' : '#dde6ee', marginBottom: 12, marginLeft: 'auto' }} />
+          <div style={{ height: 40, width: 100, borderRadius: 6, background: isDark ? '#1e304a' : '#dde6ee', marginLeft: 'auto', marginBottom: 12 }} />
+          <div style={{ height: 6, width: 200, borderRadius: 6, background: isDark ? '#1e304a' : '#dde6ee', marginLeft: 'auto' }} />
+        </div>
+      </div>
+    );
+  }
+
+  if (!selectedSpecies) {
+    return (
+      <div style={{ ...baseCard, color: isDark ? '#6b8ba4' : '#9aacb8', fontSize: 14 }}>
+        Select a species to view its coverage.
+      </div>
+    );
+  }
+
+  const pct       = selectedSpecies.coveragePercent || 0;
+  const covered   = (selectedSpecies.coveredLength  || 0).toLocaleString();
+  const total     = (selectedSpecies.totalLength    || 0).toLocaleString();
+  const labelColor = isDark ? '#6b8ba4' : '#8a9fb0';
+  const nameColor  = isDark ? '#e2e8f0' : '#132334';
+  const subColor   = isDark ? '#8ea4ba' : '#8a9fb0';
+  const trackBg   = isDark ? 'rgba(95,136,173,0.15)' : '#deeaf3';
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 28 }}>
-      <div style={{
-        background: isDark ? 'rgba(15,25,38,0.75)' : '#f7fafc',
-        borderRadius: 16,
-        padding: '24px 36px',
-        boxShadow: isDark ? '0 10px 22px rgba(3,9,16,0.35)' : '0 10px 22px rgba(17,39,58,0.08)',
-        border: isDark ? '1px solid rgba(157,196,224,0.14)' : '1px solid #d8e2e8',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 32,
-      }}>
-        {coverageLoading ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 150, color: isDark ? '#94a3b8' : '#64748b', fontSize: 15 }}>
-            Loading coverage data...
-          </div>
-        ) : current ? (
-          <>
-            <div style={{ width: 130, height: 130 }}>
-              <CircularProgressbar
-                value={current.coveragePercent || 0}
-                text={`${(current.coveragePercent || 0).toFixed(1)}%`}
-                styles={buildStyles({
-                  textSize: '20px',
-                  pathColor: '#5f88ad',
-                  textColor: isDark ? '#e2e8f0' : '#132334',
-                  trailColor: isDark ? 'rgba(95,136,173,0.2)' : '#dce5ec',
-                  pathTransitionDuration: 1,
-                  strokeLinecap: 'round',
-                })}
-                strokeWidth={8}
-              />
-            </div>
+    <div style={{
+      ...baseCard,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 32,
+    }}>
+      {/* Left: species name */}
+      <div style={{ minWidth: 0 }}>
+        <div style={{
+          fontSize: 10,
+          fontWeight: 700,
+          textTransform: 'uppercase',
+          letterSpacing: '0.1em',
+          color: labelColor,
+          marginBottom: 8,
+        }}>
+          Selected Species
+        </div>
+        <div style={{
+          fontSize: 22,
+          fontWeight: 700,
+          color: nameColor,
+          fontFamily: 'Newsreader, Georgia, serif',
+          lineHeight: 1.2,
+        }}>
+          {selectedSpecies.species}
+        </div>
+      </div>
 
-            <div style={{ maxWidth: 320 }}>
-              <div style={{
-                display: 'inline-block',
-                padding: '4px 10px',
-                background: isDark ? 'rgba(159,195,222,0.12)' : '#ecf3f8',
-                borderRadius: 6,
-                marginBottom: 12,
-                border: isDark ? '1px solid rgba(159,195,222,0.26)' : '1px solid #cfdce6',
-              }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: isDark ? '#c6d8e7' : '#325f86', letterSpacing: '0.3px', textTransform: 'uppercase' }}>
-                  {coverageData.length} Species Available
-                </span>
-              </div>
+      {/* Right: coverage % + bar */}
+      <div style={{ flexShrink: 0, textAlign: 'right', minWidth: 220 }}>
+        <div style={{
+          fontSize: 10,
+          fontWeight: 700,
+          textTransform: 'uppercase',
+          letterSpacing: '0.1em',
+          color: labelColor,
+          marginBottom: 6,
+        }}>
+          Proteome Coverage
+        </div>
 
-              <h3 style={{
-                fontSize: 24,
-                fontWeight: 600,
-                color: isDark ? '#e2e8f0' : '#132334',
-                margin: 0,
-                marginBottom: 6,
-              }}>
-                {current.species}
-              </h3>
+        <div style={{
+          fontSize: 42,
+          fontWeight: 700,
+          lineHeight: 1,
+          color: '#5f88ad',
+          marginBottom: 10,
+          fontVariantNumeric: 'tabular-nums',
+        }}>
+          {pct.toFixed(1)}
+          <span style={{ fontSize: 22, fontWeight: 600, color: isDark ? '#4a6f8a' : '#7aadc8', marginLeft: 2 }}>%</span>
+        </div>
 
-              <p style={{
-                fontSize: 14,
-                color: isDark ? '#9cb0c4' : '#5f7282',
-                margin: 0,
-                lineHeight: 1.6,
-              }}>
-                Proteome coverage: percentage of the complete protein set identified and characterized.
-              </p>
-            </div>
-          </>
-        ) : (
-          <div style={{ padding: 40, color: isDark ? '#64748b' : '#94a3b8', textAlign: 'center' }}>
-            No coverage data available
-          </div>
-        )}
+        {/* Progress track */}
+        <div style={{
+          height: 6,
+          borderRadius: 99,
+          background: trackBg,
+          overflow: 'hidden',
+          marginBottom: 8,
+        }}>
+          <div style={{
+            height: '100%',
+            width: `${Math.min(pct, 100)}%`,
+            borderRadius: 99,
+            background: 'linear-gradient(90deg, #4a7fa8, #7ab2d4)',
+            transition: 'width 0.8s ease',
+          }} />
+        </div>
+
+        <div style={{ fontSize: 12, color: subColor }}>
+          {covered} <span style={{ color: isDark ? '#4a6f8a' : '#9bb8cc' }}>/ {total} AA</span>
+        </div>
       </div>
     </div>
   );

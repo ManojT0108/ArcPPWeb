@@ -25,7 +25,7 @@
     "react-plotly.js": "^2.6.0",
     "react-router-dom": "^7.6.2",
     "react-scripts": "^5.0.1",
-    "recharts": "^2.10.3",
+    "recharts": "^2.15.4",
     "styled-components": "^6.1.19",
     "web-vitals": "^2.1.4"
   },

@@ -1,4 +1,3 @@
-// src/pages/ProteinPlotPage.jsx
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
@@ -11,7 +10,6 @@ import PeptideCoveragePlot from '../components/PeptideCoveragePlot';
 import PSMsByDatasetChart from '../components/PSMsByDatasetChart';
 import GlassCard from '../components/GlassCard';
 import SequenceViewer from '../components/SequenceViewer';
-import MiniCardDark from '../components/MiniCardDark';
 import { useTheme } from '../ThemeContext';
 
 export default function ProteinPlotPage() {
@@ -46,7 +44,7 @@ export default function ProteinPlotPage() {
           axios.get(`/api/proteins/${hvoId}/details`),
           axios.get(`/api/proteins/${hvoId}/psm-count`),
           axios.get(`/api/proteins/${hvoId}/sequence`),
-          axios.get(`/api/proteins/${hvoId}/psms-by-dataset`),
+          axios.get(`/api/proteins/${hvoId}/psms-by-dataset`).catch(() => ({ data: { success: false, data: [] } })),
         ]);
 
         if (!cancelled) {
@@ -77,18 +75,13 @@ export default function ProteinPlotPage() {
     return () => { cancelled = true; };
   }, [hvoId]);
 
-  const handlePositionClick = (position) => {
-    setSelectedPosition(position);
-  };
-
   if (loading) {
     return (
       <div style={pageBgStyle}>
         <NavBar />
         <div style={{ maxWidth: 1120, margin: '0 auto', padding: '40px 24px' }}>
-          <div style={{ height: 32, width: 220, background: isDark ? '#17223a' : '#e2e8f0', borderRadius: 8, marginBottom: 8 }} />
-          <div style={{ height: 16, width: 180, background: isDark ? '#17223a' : '#e2e8f0', borderRadius: 6 }} />
-          <div style={{ marginTop: 24, height: 220, borderRadius: 20, background: isDark ? '#0c1428' : '#e8eef7' }} />
+          <div style={{ height: 160, borderRadius: 16, background: isDark ? '#0f1e30' : '#e8eef7', marginBottom: 12 }} />
+          <div style={{ height: 80, borderRadius: 14, background: isDark ? '#0c1824' : '#edf2f7' }} />
         </div>
       </div>
     );
@@ -108,139 +101,181 @@ export default function ProteinPlotPage() {
   const { total_length = 0, covered_length = 0, coverage_percent = 0 } = coverage;
   const { uniProtein_id, qValue, description, hydrophobicity, pI, molecular_weight } = protein;
 
-  const tooltipContent = (
-    <div style={{ lineHeight: 1.4 }}>
-      <div><strong>Coverage:</strong> {coverage_percent.toFixed(2)}%</div>
-      <div><strong>Total length:</strong> {total_length}</div>
-      <div><strong>Covered length:</strong> {covered_length}</div>
-    </div>
-  );
+  const statItems = [
+    { label: 'q-Value',       value: qValue != null ? qValue : '—' },
+    { label: 'Peptides',      value: psmCount != null ? psmCount : '—' },
+    { label: 'PSMs',          value: totalPsms != null ? totalPsms.toLocaleString() : '—' },
+    { label: 'pI',            value: pI != null ? pI.toFixed(2) : '—' },
+    { label: 'Hydrophobicity',value: hydrophobicity != null ? hydrophobicity.toFixed(3) : '—' },
+    { label: 'Mol. Weight',   value: molecular_weight != null ? molecular_weight : '—' },
+  ];
+
+  const mutedColor  = isDark ? '#8ea4ba' : '#718493';
+  const labelColor  = isDark ? '#6b8ba4' : '#7a909f';
+  const headingColor = isDark ? '#e7eef8' : '#132334';
 
   return (
     <div style={pageBgStyle}>
       <NavBar />
 
-      <main style={{ maxWidth: 1120, margin: '0 auto', padding: '40px 24px 64px' }}>
-        {/* Header */}
-        <header style={{ marginBottom: 24 }}>
-          <h1 style={{ fontSize: 36, fontWeight: 700, color: isDark ? '#e7eef8' : '#132334', margin: 0 }}>{hvoId}</h1>
-          <p style={{ marginTop: 6, color: isDark ? '#9cb0c4' : '#5f7282', fontSize: 15 }}>Coverage overview</p>
-        </header>
+      <main style={{ maxWidth: 1120, margin: '0 auto', padding: '32px 24px 64px' }}>
 
-        {/* 2x2 Grid Layout */}
-        <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+        {/* Hero: gauge + protein info */}
+        <GlassCard style={{ marginBottom: 14 }} variant={cardVariant}>
+          <div style={{ display: 'flex', gap: 36, alignItems: 'center' }}>
 
-          {/* Tile 1: Info Cards (Top Left) */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gridTemplateRows: 'auto auto auto auto auto',
-            gap: 12,
-            minHeight: 320
-          }}>
-            <MiniCardDark
-              label="UNIPROT ID"
-              value={uniProtein_id || '\u2014'}
-              link={uniProtein_id ? `https://www.uniprot.org/uniprotkb/${uniProtein_id}/entry` : null}
-              variant={cardVariant}
-            />
-            <MiniCardDark label="QVALUE" value={qValue ?? '\u2014'} variant={cardVariant} />
-            <div style={{ gridColumn: 'span 2' }}>
-              <MiniCardDark label="DESCRIPTION" value={description || '\u2014'} fullHeight variant={cardVariant} />
+            {/* Gauge */}
+            <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+              <Tooltip
+                title={
+                  <div style={{ lineHeight: 1.5, fontSize: 13 }}>
+                    <div><strong>Coverage:</strong> {coverage_percent.toFixed(2)}%</div>
+                    <div><strong>Total length:</strong> {total_length} AA</div>
+                    <div><strong>Covered:</strong> {covered_length} AA</div>
+                  </div>
+                }
+                arrow placement="right" enterTouchDelay={0} leaveTouchDelay={2500}
+              >
+                <div style={{ width: 148, height: 148 }}>
+                  <CircularProgressbar
+                    value={coverage_percent}
+                    text={`${coverage_percent.toFixed(1)}%`}
+                    strokeWidth={10}
+                    styles={buildStyles({
+                      textColor:           isDark ? '#e6edf7' : '#0f172a',
+                      pathColor:           '#5f88ad',
+                      trailColor:          isDark ? '#1a2c40' : '#dce5ec',
+                      textSize:            '20px',
+                      pathTransitionDuration: 1.0,
+                    })}
+                  />
+                </div>
+              </Tooltip>
+              <div style={{ fontSize: 12, color: mutedColor, textAlign: 'center', lineHeight: 1.5 }}>
+                <span style={{ color: '#6b99bc', fontWeight: 700 }}>{covered_length}</span>
+                {' / '}
+                <span style={{ fontWeight: 600, color: isDark ? '#c8d8e8' : '#334155' }}>{total_length}</span>
+                {' AA covered'}
+              </div>
             </div>
-            <MiniCardDark label="Peptides" value={psmCount ?? '\u2014'} variant={cardVariant} />
-            <MiniCardDark label="PSMs" value={totalPsms ? totalPsms.toLocaleString() : '\u2014'} variant={cardVariant} />
-            <MiniCardDark
-              label="HYDROPHOBICITY"
-              value={hydrophobicity !== undefined && hydrophobicity !== null ? hydrophobicity.toFixed(3) : '\u2014'}
-              variant={cardVariant}
-            />
-            <MiniCardDark
-              label="pI"
-              value={pI !== undefined && pI !== null ? pI.toFixed(2) : '\u2014'}
-              variant={cardVariant}
-            />
-            <MiniCardDark
-              label="MOLECULAR WEIGHT"
-              value={molecular_weight !== undefined && molecular_weight !== null ? molecular_weight : '\u2014'}
-              variant={cardVariant}
-            />
+
+            {/* Protein info */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h1 style={{
+                fontSize: 30, fontWeight: 700,
+                color: headingColor,
+                margin: '0 0 6px',
+                fontFamily: 'Newsreader, Georgia, serif',
+              }}>
+                {hvoId}
+              </h1>
+
+              {uniProtein_id && (
+                <a
+                  href={`https://www.uniprot.org/uniprotkb/${uniProtein_id}/entry`}
+                  target="_blank" rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-block',
+                    fontSize: 13,
+                    color: isDark ? '#9fc3de' : '#315f86',
+                    textDecoration: 'none',
+                    borderBottom: `1px dashed ${isDark ? 'rgba(159,195,222,0.55)' : 'rgba(49,95,134,0.5)'}`,
+                    marginBottom: 12,
+                  }}
+                >
+                  UniProt: {uniProtein_id} ↗
+                </a>
+              )}
+
+              <p style={{
+                margin: uniProtein_id ? '0' : '12px 0 0',
+                color: mutedColor,
+                fontSize: 14,
+                lineHeight: 1.65,
+                maxWidth: 680,
+              }}>
+                {description || 'No description available.'}
+              </p>
+            </div>
           </div>
+        </GlassCard>
 
-          {/* Tile 2: Circular Gauge (Top Right) */}
-          <GlassCard style={{ minHeight: 320 }} variant={cardVariant}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16 }}>
-              <div style={{ width: 170, height: 170 }}>
-                <Tooltip title={tooltipContent} arrow placement="top" enterTouchDelay={0} leaveTouchDelay={2500}>
-                  <div style={{ width: '100%', height: '100%' }} aria-label="Sequences identified gauge">
-                    <CircularProgressbar
-                      value={coverage_percent}
-                      text={`${coverage_percent.toFixed(1)}%`}
-                      strokeWidth={10}
-                      styles={buildStyles({
-                        textColor: isDark ? '#e6edf7' : '#0f172a',
-                        pathColor: '#5f88ad',
-                        trailColor: isDark ? '#1a2438' : '#dce5ec',
-                        textSize: '20px',
-                        pathTransitionDuration: 1.0,
-                      })}
-                    />
-                  </div>
-                </Tooltip>
+        {/* Stat strip */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(6, 1fr)',
+          gap: 10,
+          marginBottom: 14,
+        }}>
+          {statItems.map(({ label, value }) => (
+            <div
+              key={label}
+              style={{
+                background: isDark ? 'rgba(15,25,40,0.8)' : '#ffffff',
+                border: isDark ? '1px solid rgba(157,196,224,0.12)' : '1px solid #dce5ec',
+                borderRadius: 12,
+                padding: '14px 16px',
+                boxShadow: isDark ? '0 4px 12px rgba(3,9,16,0.28)' : '0 4px 12px rgba(17,39,58,0.06)',
+              }}
+            >
+              <div style={{
+                fontSize: 10,
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                color: labelColor,
+                marginBottom: 6,
+              }}>
+                {label}
               </div>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ color: isDark ? '#9cb0c4' : '#5f7282', fontSize: 14, fontWeight: 500, marginBottom: 12 }}>
-                  Sequence Coverage
-                </div>
-                <div style={{ display: 'flex', gap: 24, fontSize: 12, color: isDark ? '#8ea4ba' : '#718493' }}>
-                  <div>
-                    <div style={{ color: '#6b99bc', fontWeight: 600, fontSize: 18, marginBottom: 4 }}>{covered_length}</div>
-                    <div>Covered AA</div>
-                  </div>
-                  <div>
-                    <div style={{ color: isDark ? '#e6edf7' : '#0f172a', fontWeight: 600, fontSize: 18, marginBottom: 4 }}>{total_length}</div>
-                    <div>Total AA</div>
-                  </div>
-                </div>
+              <div style={{
+                fontSize: 15,
+                fontWeight: 600,
+                color: headingColor,
+                wordBreak: 'break-word',
+              }}>
+                {value}
               </div>
             </div>
-          </GlassCard>
+          ))}
+        </div>
 
-          {/* Tile 3: Sequence Viewer (Bottom Left) */}
+        {/* Two-column: sequence viewer + PSMs chart */}
+        <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
           <GlassCard
-            title={<span style={{ fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.05em', color: isDark ? '#89a2c0' : '#64748b' }}>PROTEIN SEQUENCE — Click colored amino acid to zoom</span>}
-            style={{ minHeight: 320, display: 'flex', flexDirection: 'column' }}
+            title={
+              <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: labelColor }}>
+                Protein Sequence — click highlighted residue to zoom
+              </span>
+            }
+            style={{ minHeight: 300, display: 'flex', flexDirection: 'column' }}
             variant={cardVariant}
           >
-            {sequenceData && sequenceData.sequence && (
+            {sequenceData?.sequence && (
               <SequenceViewer
                 sequence={sequenceData.sequence}
                 modifications={sequenceData.modifications || []}
-                onPositionClick={handlePositionClick}
+                onPositionClick={setSelectedPosition}
                 highlightedPosition={selectedPosition}
               />
             )}
           </GlassCard>
 
-          {/* Tile 4: PSMs by Dataset Chart (Bottom Right) */}
-          <div style={{ minHeight: 320 }}>
+          <div style={{ minHeight: 300 }}>
             <PSMsByDatasetChart
               proteinId={hvoId}
               mode={isDark ? 'dark' : 'light'}
             />
           </div>
-
         </section>
 
-        {/* Peptide Coverage Plot - Full Width Below */}
-        <section>
-          <PeptideCoveragePlot
-            ref={plotRef}
-            hvoId={hvoId}
-            mode={isDark ? 'dark' : 'light'}
-            zoomToPosition={selectedPosition}
-          />
-        </section>
+        {/* Full-width peptide coverage plot */}
+        <PeptideCoveragePlot
+          ref={plotRef}
+          hvoId={hvoId}
+          mode={isDark ? 'dark' : 'light'}
+          zoomToPosition={selectedPosition}
+        />
       </main>
     </div>
   );

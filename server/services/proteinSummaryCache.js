@@ -1,126 +1,55 @@
-// ============================================================================
-// REDIS CACHE FOR PROTEIN SUMMARIES
-// Fast lookup for protein table data
-// ============================================================================
-
 const { redisClient } = require('./psmRedisService');
 
-/**
- * Get protein summary from Redis cache
- * @param {string} proteinId - The protein ID (e.g., "HVO_0001")
- * @returns {Promise<Object|null>} Protein summary object or null
- */
-async function getProteinSummary(proteinId) {
-  const cacheKey = `protein:summary:${proteinId}`;
+// Map species_id → short slug used in Redis key prefix
+const SPECIES_SLUGS = {
+  'haloferax volcanii':                         'hvo',
+  'methanothermococcus thermolithotrophicus':   'mettl',
+  'thermoplasma acidophilum':                   'tap',
+  'sulfolobus acidocaldarius':                  'sal',
+  'archaeoglobus fulgidus':                     'afg',
+};
 
+function speciesSlug(speciesId) {
+  const key = String(speciesId || '').toLowerCase().trim();
+  return SPECIES_SLUGS[key] || key.replace(/\s+/g, '_').slice(0, 16);
+}
+
+function redisKey(speciesId, displayId) {
+  return `protein:summary:${speciesSlug(speciesId)}:${displayId}`;
+}
+
+async function getProteinSummary(displayId, speciesId) {
   try {
-    if (!redisClient.isOpen) {
-      return null;
-    }
-
-    const data = await redisClient.get(cacheKey);
-
-    if (data) {
-      return JSON.parse(data);
-    }
-
-    return null;
+    if (!redisClient.isOpen) return null;
+    const data = await redisClient.get(redisKey(speciesId, displayId));
+    return data ? JSON.parse(data) : null;
   } catch (err) {
-    console.error(`❌ Redis error getting summary for ${proteinId}:`, err.message);
+    console.error(`Redis error getting summary for ${displayId}:`, err.message);
     return null;
   }
 }
 
-/**
- * Set protein summary in Redis cache
- * @param {string} proteinId - The protein ID
- * @param {Object} summary - Protein summary data
- */
-async function setProteinSummary(proteinId, summary) {
-  const cacheKey = `protein:summary:${proteinId}`;
-
+async function setProteinSummary(displayId, speciesId, summary) {
   try {
-    if (!redisClient.isOpen) {
-      return false;
-    }
-
-    await redisClient.set(cacheKey, JSON.stringify(summary));
+    if (!redisClient.isOpen) return false;
+    await redisClient.set(redisKey(speciesId, displayId), JSON.stringify(summary));
     return true;
   } catch (err) {
-    console.error(`❌ Redis error setting summary for ${proteinId}:`, err.message);
+    console.error(`Redis error setting summary for ${displayId}:`, err.message);
     return false;
   }
 }
 
-/**
- * Search for proteins by ID, UniProt ID, or description
- * @param {string} searchQuery - Search term
- * @param {string} speciesPrefix - Species prefix (e.g., "HVO_")
- * @returns {Promise<Array>} Array of matching protein IDs
- */
-async function searchProteins(searchQuery, speciesPrefix = 'HVO_') {
+async function getAllProteinSummaries(speciesId, offset = 0, limit = 25) {
   try {
-    if (!redisClient.isOpen) {
-      return [];
-    }
+    if (!redisClient.isOpen) return { total: 0, rows: [] };
 
-    const pattern = `protein:summary:${speciesPrefix}*`;
+    const pattern = `protein:summary:${speciesSlug(speciesId)}:*`;
     const keys = await redisClient.keys(pattern);
 
-    if (!searchQuery || !searchQuery.trim()) {
-      // No search query - return all protein IDs
-      return keys.map(k => k.replace('protein:summary:', ''));
-    }
-
-    const query = searchQuery.trim().toLowerCase();
-    const matches = [];
-
-    // Check each protein for matches
-    for (const key of keys) {
-      const data = await redisClient.get(key);
-      if (!data) continue;
-
-      const summary = JSON.parse(data);
-      const proteinId = key.replace('protein:summary:', '');
-
-      // Check if search query matches protein_id, uniProtein_id, or description
-      if (
-        proteinId.toLowerCase().includes(query) ||
-        (summary.uniProtId && summary.uniProtId.toLowerCase().includes(query)) ||
-        (summary.description && summary.description.toLowerCase().includes(query)) ||
-        (Array.isArray(summary.datasets) && summary.datasets.some(d => d.toLowerCase().includes(query)))
-      ) {
-        matches.push(proteinId);
-      }
-    }
-
-    return matches;
-  } catch (err) {
-    console.error('❌ Redis search error:', err.message);
-    return [];
-  }
-}
-
-/**
- * Get all protein summaries for a species (with pagination)
- * @param {string} speciesPrefix - Species prefix (e.g., "HVO_")
- * @param {number} offset - Skip this many results
- * @param {number} limit - Return this many results
- * @returns {Promise<Object>} {total, rows}
- */
-async function getAllProteinSummaries(speciesPrefix = 'HVO_', offset = 0, limit = 25) {
-  try {
-    if (!redisClient.isOpen) {
-      return { total: 0, rows: [] };
-    }
-
-    const pattern = `protein:summary:${speciesPrefix}*`;
-    const keys = await redisClient.keys(pattern);
-
-    // Sort protein IDs naturally
     const sortedKeys = keys.sort((a, b) => {
-      const idA = a.replace('protein:summary:', '');
-      const idB = b.replace('protein:summary:', '');
+      const idA = a.split(':').slice(3).join(':');
+      const idB = b.split(':').slice(3).join(':');
       return idA.localeCompare(idB, undefined, { numeric: true });
     });
 
@@ -130,22 +59,57 @@ async function getAllProteinSummaries(speciesPrefix = 'HVO_', offset = 0, limit 
     const rows = [];
     for (const key of pageKeys) {
       const data = await redisClient.get(key);
-      if (data) {
-        const summary = JSON.parse(data);
-        rows.push(summary);
-      }
+      if (data) rows.push(JSON.parse(data));
     }
 
     return { total, rows };
   } catch (err) {
-    console.error('❌ Redis error getting all summaries:', err.message);
+    console.error('Redis error getting all summaries:', err.message);
     return { total: 0, rows: [] };
   }
 }
 
+async function searchProteins(searchQuery, speciesId) {
+  try {
+    if (!redisClient.isOpen) return [];
+
+    const pattern = `protein:summary:${speciesSlug(speciesId)}:*`;
+    const keys = await redisClient.keys(pattern);
+
+    if (!searchQuery || !searchQuery.trim()) {
+      return keys.map(k => k.split(':').slice(3).join(':'));
+    }
+
+    const query = searchQuery.trim().toLowerCase();
+    const matches = [];
+
+    for (const key of keys) {
+      const data = await redisClient.get(key);
+      if (!data) continue;
+      const summary = JSON.parse(data);
+      const displayId = key.split(':').slice(3).join(':');
+
+      if (
+        displayId.toLowerCase().includes(query) ||
+        (summary.uniProtId && summary.uniProtId.toLowerCase().includes(query)) ||
+        (summary.description && summary.description.toLowerCase().includes(query)) ||
+        (Array.isArray(summary.datasets) && summary.datasets.some(d => d.toLowerCase().includes(query)))
+      ) {
+        matches.push(displayId);
+      }
+    }
+
+    return matches;
+  } catch (err) {
+    console.error('Redis search error:', err.message);
+    return [];
+  }
+}
+
 module.exports = {
+  speciesSlug,
   getProteinSummary,
   setProteinSummary,
+  getAllProteinSummaries,
   searchProteins,
-  getAllProteinSummaries
 };

@@ -73,7 +73,7 @@ export default function ProteinTable({
   } : {};
 
   const downloadCSV = () => {
-    const headers = ['HVO ID', 'UniProt ID', 'PSMs', 'Coverage (%)', 'Datasets', 'Modifications', 'Description'];
+    const headers = ['Protein ID', 'UniProt ID', 'PSMs', 'Coverage (%)', 'Datasets', 'Modifications', 'Description'];
     const csvRows = [headers.join(',')];
     processedRows.forEach(r => {
       const datasets = Array.isArray(r.datasets) ? r.datasets.join('; ') : '';
@@ -176,7 +176,7 @@ export default function ProteinTable({
         fontWeight: 600,
         background: isDark ? 'rgba(12,18,34,0.4)' : 'transparent',
       }}>
-        <div style={{ cursor: 'pointer' }} onClick={() => onSort('hvoId')}>HVO {sortIcon('hvoId')}</div>
+        <div style={{ cursor: 'pointer' }} onClick={() => onSort('hvoId')}>Protein ID {sortIcon('hvoId')}</div>
         <div style={{ cursor: 'pointer' }} onClick={() => onSort('uniProtId')}>UniProt ID {sortIcon('uniProtId')}</div>
         <div style={{ cursor: 'pointer' }} onClick={() => onSort('psmCount')}>PSMs {sortIcon('psmCount')}</div>
         <div style={{ cursor: 'pointer' }} onClick={() => onSort('coveragePercent')}>Coverage {sortIcon('coveragePercent')}</div>

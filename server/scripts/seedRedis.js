@@ -13,7 +13,7 @@ const fs = require('fs');
 const path = require('path');
 const redis = require('redis');
 
-const SEED_VERSION = '1.0';
+const SEED_VERSION = '2.0';
 
 const REDIS_HOST = process.env.REDIS_HOST || 'localhost';
 const REDIS_PORT = process.env.REDIS_PORT || 6379;
