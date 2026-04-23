@@ -1,34 +1,25 @@
 const Protein = require('../model/proteins');
 
-/**
- * Resolve a protein_id string (e.g. "HVO_0001") to its MongoDB ObjectId.
- * Returns null if not found.
- */
-async function resolveProteinId(proteinIdStr) {
-  const doc = await Protein.findOne(
-    { protein_id: proteinIdStr },
-    { _id: 1 }
-  ).lean();
+// Resolve any protein identifier (hvo_id or protein_id) to its MongoDB ObjectId.
+async function resolveProteinId(idStr) {
+  if (!idStr) return null;
+  // Try hvo_id first (HVO-style IDs)
+  let doc = await Protein.findOne({ hvo_id: idStr }, { _id: 1 }).lean();
+  if (doc) return doc._id;
+  // Fall back to protein_id (UniProt accessions and other species)
+  doc = await Protein.findOne({ protein_id: idStr }, { _id: 1 }).lean();
   return doc ? doc._id : null;
 }
 
-/**
- * Resolve multiple protein_id strings to their MongoDB ObjectIds.
- * Returns an array of ObjectIds (excludes not-found entries).
- */
-async function resolveProteinIds(proteinIdStrs) {
-  if (!proteinIdStrs || proteinIdStrs.length === 0) return [];
+async function resolveProteinIds(idStrs) {
+  if (!idStrs || idStrs.length === 0) return [];
   const docs = await Protein.find(
-    { protein_id: { $in: proteinIdStrs } },
+    { $or: [{ hvo_id: { $in: idStrs } }, { protein_id: { $in: idStrs } }] },
     { _id: 1 }
   ).lean();
   return docs.map(d => d._id);
 }
 
-/**
- * Resolve protein_id strings matching a filter (e.g. regex) to ObjectIds.
- * Returns an array of ObjectIds.
- */
 async function resolveProteinIdsByFilter(filter) {
   const docs = await Protein.find(filter, { _id: 1 }).lean();
   return docs.map(d => d._id);

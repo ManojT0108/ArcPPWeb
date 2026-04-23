@@ -13,75 +13,79 @@ const canonicalModType = (rawType) => {
   return match || null;
 };
 
-// HVO IDs from MongoDB
+// Resolve a display ID (hvo_id or protein_id) to a protein document
+async function findProteinByDisplayId(displayId, projection = {}) {
+  let doc = await Protein.findOne({ hvo_id: displayId }, projection).lean();
+  if (!doc) doc = await Protein.findOne({ protein_id: displayId }, projection).lean();
+  return doc;
+}
+
+// All HVO gene IDs
 router.get('/hvo-ids', async (req, res) => {
   try {
-    const ids = await Protein.distinct('protein_id', {
-      protein_id: { $regex: '^HVO_', $options: 'i' }
-    });
-    res.json(ids.sort());
+    const ids = await Protein.distinct('hvo_id', { hvo_id: { $exists: true, $ne: null, $ne: '' } });
+    res.json(ids.filter(Boolean).sort());
   } catch (e) {
     console.error('hvo-ids error', e);
     res.status(500).json({ error: 'Failed to fetch HVO IDs' });
   }
 });
 
-// Unified ID list — must be before /:protein_id routes
+// All display IDs grouped by type (for autocomplete)
 router.get('/proteins/ids', async (_req, res) => {
   try {
-    const hvoRaw = await Protein.distinct('protein_id');
-    const uniRaw = await Protein.distinct('uniProtein_id');
+    const hvoRaw = await Protein.distinct('hvo_id');
+    const hvo = hvoRaw.filter(Boolean).map(s => String(s).trim()).filter(s => HVO_RE.test(s));
+    hvo.sort();
 
-    const clean = (arr, re) =>
-      arr
-        .filter(Boolean)
-        .map((s) => String(s).toUpperCase().trim())
-        .filter((s) => re.test(s));
+    // Non-HVO species protein_ids (UniProt accessions)
+    const nonHvoRaw = await Protein.distinct('protein_id', { hvo_id: { $exists: false } });
+    const uniprot = nonHvoRaw
+      .filter(Boolean)
+      .map(s => String(s).toUpperCase().trim())
+      .filter(s => UNIPROT_RE.test(s));
+    uniprot.sort();
 
-    const hvo = Array.from(new Set(clean(hvoRaw, HVO_RE))).sort();
-    const uniprot = Array.from(new Set(clean(uniRaw, UNIPROT_RE))).sort();
-
-    res.json({ hvo, uniprot });
+    res.json({ hvo: Array.from(new Set(hvo)), uniprot: Array.from(new Set(uniprot)) });
   } catch (e) {
     console.error('proteins/ids error', e);
     res.status(500).json({ error: 'Failed to fetch protein IDs' });
   }
 });
 
-// Case-insensitive resolver — must be before /:protein_id routes
+// Case-insensitive resolve (hvo_id or protein_id)
 router.get('/proteins/resolve', async (req, res) => {
   try {
     const raw = (req.query.q || '').trim();
     if (!raw) return res.status(400).json({ error: 'Missing q' });
 
-    const q = raw.trim();
-
-    if (HVO_RE.test(q)) {
+    // Try hvo_id
+    if (HVO_RE.test(raw)) {
       const byHvo = await Protein.findOne(
-        { protein_id: { $regex: `^${q}$`, $options: 'i' } },
-        { _id: 0, protein_id: 1, uniProtein_id: 1, description: 1 }
+        { hvo_id: { $regex: `^${raw}$`, $options: 'i' } },
+        { _id: 0, protein_id: 1, hvo_id: 1, uniProtein_id: 1, description: 1 }
       ).lean();
       if (byHvo) {
         return res.json({
-          matchType: 'protein_id',
-          protein_id: byHvo.protein_id,
-          uniProtein_id: byHvo.uniProtein_id || null,
+          matchType: 'hvo_id',
+          protein_id: byHvo.hvo_id,
+          uniProtId: byHvo.protein_id,
           description: byHvo.description || null,
         });
       }
     }
 
-    if (UNIPROT_RE.test(q)) {
+    // Try protein_id (UniProt)
+    if (UNIPROT_RE.test(raw)) {
       const byUni = await Protein.findOne(
-        { uniProtein_id: { $regex: `^${q}$`, $options: 'i' } },
-        { _id: 0, protein_id: 1, uniProtein_id: 1, description: 1 }
+        { protein_id: { $regex: `^${raw}$`, $options: 'i' } },
+        { _id: 0, protein_id: 1, hvo_id: 1, description: 1 }
       ).lean();
-
       if (byUni) {
         return res.json({
-          matchType: 'uniProt',
-          protein_id: byUni.protein_id,
-          uniProtein_id: byUni.uniProtein_id || null,
+          matchType: 'protein_id',
+          protein_id: byUni.hvo_id || byUni.protein_id,
+          uniProtId: byUni.protein_id,
           description: byUni.description || null,
         });
       }
@@ -97,19 +101,12 @@ router.get('/proteins/resolve', async (req, res) => {
 // Protein sequence with modifications
 router.get('/proteins/:protein_id/sequence', async (req, res) => {
   try {
-    const proteinId = req.params.protein_id;
-    console.log(`📖 Sequence request for ${proteinId}`);
-
-    const proteinDoc = await Protein.findOne(
-      { protein_id: proteinId },
-      { _id: 1, sequence: 1 }
-    ).lean();
+    const displayId = req.params.protein_id;
+    const proteinDoc = await findProteinByDisplayId(displayId, { _id: 1, sequence: 1, protein_id: 1 });
     if (!proteinDoc || !proteinDoc.sequence) {
-      console.log(`   ⚠️  Sequence not found for ${proteinId}`);
       return res.status(404).json({ error: 'Sequence not found' });
     }
     const sequence = proteinDoc.sequence;
-    console.log(`   ✅ Sequence found (${sequence.length} AA)`);
 
     const peptideDocs = await Peptide.find(
       { protein_id: proteinDoc._id, qValue: { $lte: 0.005 } },
@@ -130,12 +127,10 @@ router.get('/proteins/:protein_id/sequence', async (req, res) => {
         for (const part of String(r.mods).split(';')) {
           const m = re.exec(part.trim());
           if (!m) continue;
-
           const type = canonicalModType(m[1]);
           if (!type) continue;
           const rel = parseInt(m[2], 10);
           const abs = r.start + rel - 1;
-
           if (abs < 1 || abs > sequence.length) continue;
 
           const modKey = `${abs}|${type}`;
@@ -143,7 +138,7 @@ router.get('/proteins/:protein_id/sequence', async (req, res) => {
           seenMods.add(modKey);
           modifications.push({
             position: abs,
-            type: type,
+            type,
             relativePosition: rel,
             peptideStart: r.start,
             peptideEnd: r.stop,
@@ -167,90 +162,75 @@ router.get('/proteins/:protein_id/sequence', async (req, res) => {
       }
     }
 
-    res.json({
-      protein_id: proteinId,
-      sequence: sequence,
-      length: sequence.length,
-      modifications: modifications
-    });
-
+    res.json({ protein_id: displayId, sequence, length: sequence.length, modifications });
   } catch (err) {
-    console.error('❌ Sequence endpoint error for', req.params.protein_id, ':', err.message);
+    console.error('Sequence endpoint error for', req.params.protein_id, ':', err.message);
     res.status(500).json({ error: 'Failed to fetch sequence data' });
   }
 });
 
 // Legacy plot-friendly protein data
 router.get('/protein-data/:hvoId', async (req, res) => {
-  const hvoId = req.params.hvoId;
   try {
-    const plotData = await getPlotDataForProtein(hvoId);
+    const plotData = await getPlotDataForProtein(req.params.hvoId);
     res.json(plotData);
   } catch (error) {
-    console.error('❌ Error generating plot data:', error.message);
+    console.error('Error generating plot data:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
 
 // Coverage numbers
 router.get('/coverage/:protein_id', async (req, res) => {
-  const proteinId = req.params.protein_id;
   try {
-    const coverage = await getProteinCoverage(proteinId);
+    const coverage = await getProteinCoverage(req.params.protein_id);
     res.json(coverage);
   } catch (err) {
-    console.error('❌ Coverage error:', err.message);
+    console.error('Coverage error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
 // Protein details
 router.get('/proteins/:protein_id/details', async (req, res) => {
-  const proteinId = req.params.protein_id;
+  const displayId = req.params.protein_id;
   try {
-    console.log(`📊 Fetching protein details for ${proteinId}`);
+    const doc = await findProteinByDisplayId(displayId, {
+      _id: 0, protein_id: 1, hvo_id: 1, description: 1, qValue: 1,
+      uniProtein_id: 1, hydrophobicity: 1, pI: 1, molecularWeight: 1, species_id: 1
+    });
 
-    const doc = await Protein.findOne(
-      { protein_id: proteinId },
-      { _id: 0, protein_id: 1, description: 1, qValue: 1, uniProtein_id: 1, hydrophobicity: 1, pI: 1, molecularWeight: 1 }
-    ).lean();
+    if (!doc) return res.status(404).json({ error: 'Protein not found' });
 
-    if (!doc) {
-      console.log(`   ⚠️  Protein ${proteinId} not found`);
-      return res.status(404).json({ error: 'Protein not found' });
-    }
-
-    const result = {
+    res.json({
       ...doc,
+      // protein_id is always the UniProt accession in the new schema
+      uniProtein_id: doc.uniProtein_id || doc.protein_id || null,
       molecular_weight: doc.molecularWeight,
-    };
-    delete result.molecularWeight;
-
-    res.json(result);
-
+      molecularWeight: undefined,
+    });
   } catch (err) {
-    console.error('❌ Protein details error:', err);
+    console.error('Protein details error:', err);
     res.status(500).json({ error: 'Failed to fetch protein details' });
   }
 });
 
-// Unique peptide-sequence count (PSM proxy)
+// Unique peptide-sequence count
 router.get('/proteins/:protein_id/psm-count', async (req, res) => {
-  const proteinId = req.params.protein_id;
+  const displayId = req.params.protein_id;
   try {
-    const objectId = await resolveProteinId(proteinId);
-    if (!objectId) return res.status(404).json({ error: `Protein ${proteinId} not found` });
+    const objectId = await resolveProteinId(displayId);
+    if (!objectId) return res.status(404).json({ error: `Protein ${displayId} not found` });
 
-    const pipeline = [
+    const result = await Peptide.aggregate([
       { $match: { protein_id: objectId } },
       { $group: { _id: '$sequence' } },
       { $count: 'unique_sequences' },
-    ];
-    const result = await Peptide.aggregate(pipeline).exec();
+    ]).exec();
     const count = result?.[0]?.unique_sequences ?? 0;
-    res.json({ protein_id: proteinId, psmCount: count });
+    res.json({ protein_id: displayId, psmCount: count });
   } catch (err) {
-    console.error('❌ PSM count error:', err);
+    console.error('PSM count error:', err);
     res.status(500).json({ error: 'Failed to compute PSM count' });
   }
 });
@@ -259,18 +239,13 @@ router.get('/proteins/:protein_id/psm-count', async (req, res) => {
 router.get('/proteins/:proteinId/psms-by-dataset', async (req, res) => {
   try {
     const { proteinId } = req.params;
-    console.log(`\n📊 === PSM DATA REQUEST ===`);
-    console.log(`   Protein ID: ${proteinId}`);
-
     const startTime = Date.now();
     let data = [];
 
     try {
-      console.log(`   Fetching from Redis...`);
       data = await getPsmsByDataset(proteinId);
-      console.log(`   📦 Redis returned ${data.length} datasets`);
     } catch (redisErr) {
-      console.log(`   ⚠️  Redis failed:`, redisErr.message);
+      console.log('Redis PSM lookup failed:', redisErr.message);
     }
 
     if (!data || data.length === 0) {
@@ -282,25 +257,16 @@ router.get('/proteins/:proteinId/psms-by-dataset', async (req, res) => {
       });
     }
 
-    const elapsed = Date.now() - startTime;
-    console.log(`   ✅ Query completed in ${elapsed}ms from redis`);
-
     res.json({
       success: true,
       proteinId,
       data,
       source: 'redis',
-      responseTimeMs: elapsed
+      responseTimeMs: Date.now() - startTime
     });
-
   } catch (error) {
-    console.error(`\n❌ === PSM DATA ERROR ===`);
-    console.error(`   Error:`, error.message);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      message: 'Failed to fetch PSM data'
-    });
+    console.error('PSM DATA ERROR:', error.message);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -312,20 +278,11 @@ router.get('/peptides/selected-fields', async (req, res) => {
 
     const results = await Peptide.aggregate([
       { $match: { protein_id: objectId } },
-      {
-        $project: {
-          _id: 0,
-          protein_id: 1,
-          modification: 1,
-          sequence: 1,
-          startIndex: 1,
-          endIndex: 1,
-        },
-      },
+      { $project: { _id: 0, protein_id: 1, modification: 1, sequence: 1, startIndex: 1, endIndex: 1 } },
     ]);
     res.json(results);
   } catch (err) {
-    console.error('❌ Aggregation error:', err);
+    console.error('Aggregation error:', err);
     res.status(500).json({ error: 'Failed to fetch peptides' });
   }
 });

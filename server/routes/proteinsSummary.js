@@ -8,6 +8,11 @@ const { speciesToProteinIdFilter } = require('../utils/speciesFilter');
 
 const concurrency = pLimit(6);
 
+// Return the display ID for a protein doc (hvo_id for HVO, protein_id for others)
+function displayId(doc) {
+  return doc.hvo_id || doc.protein_id;
+}
+
 router.get('/species/:speciesId/proteins-summary', async (req, res) => {
   const startTime = Date.now();
 
@@ -22,165 +27,115 @@ router.get('/species/:speciesId/proteins-summary', async (req, res) => {
     const selectedDatasets = req.query.datasets ? JSON.parse(req.query.datasets) : [];
     const selectedOverlaps = req.query.overlaps ? JSON.parse(req.query.overlaps) : [];
 
-    // TRY REDIS FIRST (only if no filters)
+    // TRY REDIS FIRST (only if no dataset/overlap filters)
     if (selectedDatasets.length === 0 && selectedOverlaps.length === 0) {
-      console.log('   🔍 Checking Redis cache...');
-
       try {
-        const speciesPrefix = /^haloferax volcanii$/i.test(speciesId) ? 'HVO_' : '';
-
         if (searchQuery.trim()) {
-          const matchingIds = await searchProteins(searchQuery, speciesPrefix);
-
+          const matchingIds = await searchProteins(searchQuery, speciesId);
           if (matchingIds.length > 0) {
             console.log(`   ✅ Redis search found ${matchingIds.length} matches`);
-
             const allRows = [];
-            for (const proteinId of matchingIds) {
-              const summary = await getProteinSummary(proteinId);
+            for (const id of matchingIds) {
+              const summary = await getProteinSummary(id, speciesId);
               if (summary) allRows.push(summary);
             }
-
             allRows.sort((a, b) => a.hvoId.localeCompare(b.hvoId, undefined, { numeric: true }));
-
             const total = allRows.length;
             const rows = allRows.slice(offset, offset + limitN);
-
-            const elapsed = Date.now() - startTime;
-            console.log(`   ⚡ Redis response in ${elapsed}ms\n`);
-
+            console.log(`   ⚡ Redis response in ${Date.now() - startTime}ms\n`);
             return res.json({ speciesId, total, offset, limit: limitN, rows, source: 'redis' });
           }
         } else {
-          const result = await getAllProteinSummaries(speciesPrefix, offset, limitN);
-
+          const result = await getAllProteinSummaries(speciesId, offset, limitN);
           if (result.total > 0) {
             console.log(`   ✅ Redis cache hit: ${result.total} proteins`);
-            const elapsed = Date.now() - startTime;
-            console.log(`   ⚡ Redis response in ${elapsed}ms\n`);
-
-            return res.json({
-              speciesId,
-              total: result.total,
-              offset,
-              limit: limitN,
-              rows: result.rows,
-              source: 'redis'
-            });
+            console.log(`   ⚡ Redis response in ${Date.now() - startTime}ms\n`);
+            return res.json({ speciesId, total: result.total, offset, limit: limitN, rows: result.rows, source: 'redis' });
           }
         }
-
         console.log('   ⚠️  Redis cache miss, falling back to MongoDB...');
       } catch (redisErr) {
-        console.error('   ❌ Redis error:', redisErr.message);
-        console.log('   ⚠️  Falling back to MongoDB...');
+        console.error('   Redis error:', redisErr.message);
       }
     } else {
-      console.log("   ℹ️  Filters applied, using MongoDB (Redis doesn't support complex filters yet)");
+      console.log('   ℹ️  Filters applied, using MongoDB');
     }
 
     let filter = speciesToProteinIdFilter(speciesId);
-
-    let matchingProteinIds = null;
 
     if (selectedDatasets.length > 0) {
       filter.dataset_ids = { $in: selectedDatasets };
     }
 
-    if (selectedOverlaps.length > 0) {
-      const proteinsWithOverlap = await Protein.find(
-        filter,
-        { protein_id: 1, dataset_ids: 1 }
-      ).lean();
+    let matchingProteinIds = null;
 
+    if (selectedOverlaps.length > 0) {
+      const proteinsWithOverlap = await Protein.find(filter, { protein_id: 1, hvo_id: 1, dataset_ids: 1 }).lean();
       matchingProteinIds = proteinsWithOverlap
         .filter(p => {
           const count = Array.isArray(p.dataset_ids) ? p.dataset_ids.length : 0;
           return selectedOverlaps.includes(count);
         })
-        .map(p => p.protein_id);
+        .map(p => displayId(p));
 
       if (matchingProteinIds.length === 0) {
         return res.json({ speciesId, total: 0, offset, limit: limitN, rows: [] });
       }
-
-      filter.protein_id = { $in: matchingProteinIds };
+      filter = { ...speciesToProteinIdFilter(speciesId), $or: [{ hvo_id: { $in: matchingProteinIds } }, { protein_id: { $in: matchingProteinIds } }] };
     }
 
     if (selectedDatasets.length > 0 && selectedOverlaps.length > 0) {
       const proteinsInDatasets = await Protein.find(
-        {
-          ...speciesToProteinIdFilter(speciesId),
-          dataset_ids: { $in: selectedDatasets }
-        },
-        { protein_id: 1, dataset_ids: 1 }
+        { ...speciesToProteinIdFilter(speciesId), dataset_ids: { $in: selectedDatasets } },
+        { protein_id: 1, hvo_id: 1, dataset_ids: 1 }
       ).lean();
-
       matchingProteinIds = proteinsInDatasets
         .filter(p => {
           const count = Array.isArray(p.dataset_ids) ? p.dataset_ids.length : 0;
           return selectedOverlaps.includes(count);
         })
-        .map(p => p.protein_id);
+        .map(p => displayId(p));
 
       if (matchingProteinIds.length === 0) {
         return res.json({ speciesId, total: 0, offset, limit: limitN, rows: [] });
       }
-
       filter = {
         ...speciesToProteinIdFilter(speciesId),
-        protein_id: { $in: matchingProteinIds }
+        $or: [{ hvo_id: { $in: matchingProteinIds } }, { protein_id: { $in: matchingProteinIds } }],
       };
     }
 
-    // Handle search with modifications
-    let proteinIdsFromModSearch = [];
     if (searchQuery.trim()) {
-      const speciesProteinDocs = await Protein.find(
-        speciesToProteinIdFilter(speciesId),
-        { _id: 1, protein_id: 1 }
-      ).lean();
+      const speciesProteinDocs = await Protein.find(speciesToProteinIdFilter(speciesId), { _id: 1, protein_id: 1, hvo_id: 1 }).lean();
       const speciesObjectIds = speciesProteinDocs.map(p => p._id);
-      const objIdToName = {};
+      const objIdToDisplay = {};
       for (const p of speciesProteinDocs) {
-        objIdToName[p._id.toString()] = p.protein_id;
+        objIdToDisplay[p._id.toString()] = displayId(p);
       }
 
       const peptidesWithMod = await Peptide.find(
-        {
-          protein_id: { $in: speciesObjectIds },
-          modification: { $regex: searchQuery.trim(), $options: 'i' }
-        },
+        { protein_id: { $in: speciesObjectIds }, modification: { $regex: searchQuery.trim(), $options: 'i' } },
         { protein_id: 1, _id: 0 }
       ).lean();
+      const idsFromMod = [...new Set(peptidesWithMod.map(p => objIdToDisplay[p.protein_id.toString()]).filter(Boolean))];
 
-      proteinIdsFromModSearch = [...new Set(peptidesWithMod.map(p => objIdToName[p.protein_id.toString()]).filter(Boolean))];
-    }
-
-    if (searchQuery.trim()) {
       const searchRegex = { $regex: searchQuery.trim(), $options: 'i' };
-      filter.$or = [
+      const orClauses = [
         { protein_id: searchRegex },
-        { uniProtein_id: searchRegex },
+        { hvo_id: searchRegex },
         { description: searchRegex },
-        { dataset_ids: searchRegex }
+        { dataset_ids: searchRegex },
       ];
-
-      if (proteinIdsFromModSearch.length > 0) {
-        filter.$or.push({ protein_id: { $in: proteinIdsFromModSearch } });
+      if (idsFromMod.length > 0) {
+        orClauses.push({ $or: [{ hvo_id: { $in: idsFromMod } }, { protein_id: { $in: idsFromMod } }] });
       }
+      filter.$or = orClauses;
     }
 
-    let total = await Protein.countDocuments(filter).exec();
-
-    if (total === 0 && !searchQuery.trim() && selectedDatasets.length === 0 && selectedOverlaps.length === 0) {
-      filter = { protein_id: { $regex: '^HVO_', $options: 'i' } };
-      total = await Protein.countDocuments(filter).exec();
-    }
-
+    const total = await Protein.countDocuments(filter).exec();
     const proteinDocs = await Protein.find(
       filter,
-      { _id: 1, protein_id: 1, uniProtein_id: 1, description: 1, dataset_ids: 1 }
+      { _id: 1, protein_id: 1, hvo_id: 1, uniProtein_id: 1, description: 1, dataset_ids: 1, species_id: 1 }
     )
       .sort({ protein_id: 1 })
       .skip(offset)
@@ -191,7 +146,7 @@ router.get('/species/:speciesId/proteins-summary', async (req, res) => {
     const rows = await Promise.all(
       proteinDocs.map((doc) =>
         concurrency(async () => {
-          const pid = doc.protein_id;
+          const pid = displayId(doc);
 
           let psmCount = 0;
           try {
@@ -211,34 +166,29 @@ router.get('/species/:speciesId/proteins-summary', async (req, res) => {
 
           let modifications = [];
           try {
-            const peptides = await Peptide.find(
-              { protein_id: doc._id },
-              { modification: 1, _id: 0 }
-            ).lean();
-
+            const peptides = await Peptide.find({ protein_id: doc._id }, { modification: 1, _id: 0 }).lean();
             const modSet = new Set();
             peptides.forEach(pep => {
               if (pep.modification && pep.modification !== 'N/A' && pep.modification.trim()) {
-                const mods = pep.modification.split(';');
-                mods.forEach(mod => {
+                pep.modification.split(';').forEach(mod => {
                   const modType = mod.split(':')[0].trim();
                   if (modType) modSet.add(modType);
                 });
               }
             });
             modifications = Array.from(modSet).sort();
-          } catch (err) {
-            console.error(`Failed to get modifications for ${pid}:`, err);
-          }
+          } catch {}
 
           return {
             hvoId: pid,
-            uniProtId: doc.uniProtein_id || '',
+            // only show uniProtId when it differs from the display ID (i.e. HVO proteins)
+            uniProtId: (doc.protein_id && doc.protein_id !== pid) ? doc.protein_id : '',
+            species_id: doc.species_id || '',
             psmCount,
             coveragePercent,
             datasets: Array.isArray(doc.dataset_ids) ? doc.dataset_ids.filter(Boolean) : [],
             description: doc.description || '',
-            modifications: modifications,
+            modifications,
           };
         })
       )

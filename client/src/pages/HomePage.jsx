@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTheme } from '../ThemeContext';
 import {
@@ -7,7 +7,16 @@ import {
   InputAdornment,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
-import { BarChart } from '@mui/x-charts/BarChart';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTip,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts';
 
 import { filterModifications } from '../constants/modifications';
 import CoverageOverview from '../components/CoverageOverview';
@@ -16,11 +25,20 @@ import ProteinTable from '../components/ProteinTable';
 
 const PAGE_SIZE = 25;
 
+function SpeciesTick({ x, y, payload, fill }) {
+  const [abbrev, ...rest] = (payload?.value || '').split(' ');
+  const name = rest.join(' ');
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text dy="1.1em" textAnchor="middle" fill={fill} fontSize={11} fontStyle="italic">{abbrev}</text>
+      {name && <text dy="2.4em" textAnchor="middle" fill={fill} fontSize={11}>{name}</text>}
+    </g>
+  );
+}
+
 export default function HomePage() {
   const navigate = useNavigate();
   const { isDark, toggleTheme } = useTheme();
-  const speciesCoverageChartRef = useRef(null);
-  const speciesProteinCountChartRef = useRef(null);
 
   const inputSx = {
     width: '100%',
@@ -40,6 +58,7 @@ export default function HomePage() {
     '& .MuiAutocomplete-popupIndicator': { color: isDark ? '#9db4cc' : '#6d8191' },
     '& .MuiAutocomplete-clearIndicator': { color: isDark ? '#9db4cc' : '#6d8191' },
   };
+
   const controlLabelStyle = {
     fontSize: 13,
     color: isDark ? '#8fa6bc' : '#607485',
@@ -77,37 +96,6 @@ export default function HomePage() {
   const [sort, setSort] = useState({ key: 'hvoId', dir: 'asc' });
 
   useEffect(() => {
-    const textColor = isDark ? '#f8fafc' : '#334155';
-    const axisColor = isDark ? '#f8fafc' : '#64748b';
-    const applyTo = (root) => {
-      if (!root) return null;
-      const apply = () => {
-        root.querySelectorAll('text').forEach((el) => {
-          el.setAttribute('fill', textColor);
-          el.style.fill = textColor;
-        });
-        root.querySelectorAll('line, path').forEach((el) => {
-          if (el.getAttribute('class')?.includes('MuiChartsAxis')) {
-            el.setAttribute('stroke', axisColor);
-            el.style.stroke = axisColor;
-          }
-        });
-      };
-      apply();
-      const observer = new MutationObserver(apply);
-      observer.observe(root, { childList: true, subtree: true });
-      return observer;
-    };
-
-    const o1 = applyTo(speciesCoverageChartRef.current);
-    const o2 = applyTo(speciesProteinCountChartRef.current);
-    return () => {
-      o1?.disconnect();
-      o2?.disconnect();
-    };
-  }, [isDark, coverageData]);
-
-  useEffect(() => {
     if (!speciesOptions.length) return;
     const exists = speciesValue && speciesOptions.some((s) => s.value === speciesValue.value);
     if (exists) return;
@@ -123,7 +111,7 @@ export default function HomePage() {
     setSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
   };
 
-  const sortIcon = (key) => sort.key !== key ? '\u2195' : sort.dir === 'asc' ? '\u2191' : '\u2193';
+  const sortIcon = (key) => sort.key !== key ? '↕' : sort.dir === 'asc' ? '↑' : '↓';
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const fetchPage = async (nextPage, searchQuery = '', speciesFilter = '', datasetFilter = [], overlapFilter = []) => {
@@ -257,22 +245,60 @@ export default function HomePage() {
     loadDatasets();
   }, [speciesValue]);
 
-  const speciesNames = coverageData.map((d) => d.species);
-  const coveragePercents = coverageData.map((d) => d.coveragePercent || 0);
-  const identifiedProteins = coverageData.map((d) => d.observedProteins || 0);
+  // Chart data
   const selectedSpeciesStats = coverageData.find((d) => d.species === speciesValue?.value) || null;
-  const useAngledSpeciesTicks = speciesNames.length > 2;
-  const speciesChartWidth = Math.max(520, Math.min(920, speciesNames.length * 170));
-  const speciesTickStyle = useAngledSpeciesTicks
-    ? { angle: -30, textAnchor: 'end', fontSize: 11 }
-    : { angle: 0, textAnchor: 'middle', fontSize: 11 };
-  const speciesBottomMargin = useAngledSpeciesTicks ? 96 : 68;
+  const speciesNames = coverageData.map((d) => d.species);
+  const speciesNamesShort = speciesNames.map((name) => {
+    const parts = name.trim().split(/\s+/);
+    return parts.length >= 2 ? `${parts[0][0]}. ${parts.slice(1).join(' ')}` : name;
+  });
+
+  const coverageChartData = speciesNamesShort.map((name, i) => ({
+    name,
+    value: coverageData[i]?.coveragePercent || 0,
+    fullName: speciesNames[i],
+  }));
+  const proteinsChartData = speciesNamesShort.map((name, i) => ({
+    name,
+    value: coverageData[i]?.observedProteins || 0,
+    fullName: speciesNames[i],
+  }));
+
+  const chartGrid      = isDark ? 'rgba(255,255,255,0.05)' : '#e8edf2';
+  const chartAxisColor = isDark ? 'rgba(255,255,255,0.12)' : '#d1d9e0';
+  const chartTickFill  = isDark ? '#c8d8e8' : '#475569';
+
+  const tipStyle = {
+    contentStyle: {
+      background: isDark ? '#162032' : '#fff',
+      border: `1px solid ${isDark ? 'rgba(157,196,224,0.22)' : '#dce5ec'}`,
+      borderRadius: 8,
+      fontSize: 13,
+      color: isDark ? '#e2e8f0' : '#132334',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.18)',
+    },
+    labelStyle: { fontWeight: 600, color: isDark ? '#e2e8f0' : '#132334', marginBottom: 2 },
+    itemStyle:  { color: isDark ? '#9cb0c4' : '#5f7282' },
+    cursor:     { fill: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' },
+  };
+
+  const handleBarClick = (data) => {
+    if (!data?.fullName) return;
+    setSpeciesValue({ label: data.fullName, value: data.fullName });
+    setTableSpeciesFilter(data.fullName);
+    setShowTable(true);
+    setShowDatasetGraphs(true);
+  };
+
+  const panelStyle = {
+    background: isDark ? 'rgba(12,22,36,0.82)' : '#f7fafc',
+    borderRadius: 14,
+    padding: '20px 22px',
+    border: isDark ? '1px solid rgba(157,196,224,0.12)' : '1px solid #d8e2e8',
+  };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: isDark ? '#0b1320' : '#f4f7f8'
-    }}>
+    <div style={{ minHeight: '100vh', background: isDark ? '#0b1320' : '#f4f7f8' }}>
       <nav style={{
         background: isDark ? 'rgba(10,16,26,0.92)' : 'rgba(244,247,248,0.94)',
         padding: '14px 24px',
@@ -280,29 +306,23 @@ export default function HomePage() {
         backdropFilter: 'blur(8px)',
         position: 'sticky',
         top: 0,
-        zIndex: 100
+        zIndex: 100,
       }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 1200, margin: '0 auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 1200, margin: '0 auto' }}>
           <Link to="/" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{
-              width: 34,
-              height: 34,
-              borderRadius: 999,
+              width: 34, height: 34, borderRadius: 999,
               border: `1px solid ${isDark ? 'rgba(157,196,224,0.5)' : '#9bb6cb'}`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 14,
-              fontWeight: 600,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 14, fontWeight: 600,
               color: isDark ? '#c5d8e7' : '#3e5e78',
               fontFamily: 'Newsreader, Georgia, serif',
             }}>A</div>
             <div style={{
-              fontWeight: 700,
-              fontSize: 23,
+              fontWeight: 700, fontSize: 23,
               color: isDark ? '#e5edf7' : '#122538',
               letterSpacing: '0.01em',
-              fontFamily: 'Newsreader, Georgia, serif'
+              fontFamily: 'Newsreader, Georgia, serif',
             }}>ArcPP</div>
           </Link>
 
@@ -313,11 +333,9 @@ export default function HomePage() {
                 padding: '8px 14px',
                 background: isDark ? 'rgba(157,196,224,0.14)' : '#e6eef4',
                 color: isDark ? '#d6e6f2' : '#2f5675',
-                fontWeight: 600,
-                fontSize: 13,
+                fontWeight: 600, fontSize: 13,
                 border: `1px solid ${isDark ? 'rgba(157,196,224,0.28)' : '#c4d3df'}`,
-                borderRadius: 8,
-                cursor: 'pointer',
+                borderRadius: 8, cursor: 'pointer',
               }}
             >
               Browse Datasets
@@ -328,16 +346,10 @@ export default function HomePage() {
               style={{
                 background: isDark ? 'rgba(157,196,224,0.12)' : '#edf3f7',
                 border: `1px solid ${isDark ? 'rgba(157,196,224,0.28)' : '#c7d6e1'}`,
-                borderRadius: 8,
-                cursor: 'pointer',
-                fontSize: 11,
-                color: isDark ? '#c4d8e8' : '#466783',
-                fontWeight: 700,
-                width: 36,
-                height: 36,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                borderRadius: 8, cursor: 'pointer',
+                fontSize: 11, color: isDark ? '#c4d8e8' : '#466783',
+                fontWeight: 700, width: 36, height: 36,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
             >
               {isDark ? '☀' : '☾'}
@@ -348,149 +360,176 @@ export default function HomePage() {
 
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '36px 24px' }}>
         <div style={{
-          background: isDark ? 'linear-gradient(180deg, rgba(17,28,43,0.97), rgba(11,19,31,0.97))' : 'linear-gradient(180deg, #ffffff, #f7fafb)',
+          background: isDark
+            ? 'linear-gradient(180deg, rgba(17,28,43,0.97), rgba(11,19,31,0.97))'
+            : 'linear-gradient(180deg, #ffffff, #f7fafb)',
           borderRadius: 16,
           padding: '32px 36px',
           boxShadow: isDark ? '0 14px 28px rgba(3,9,16,0.44)' : '0 14px 28px rgba(17,39,58,0.08)',
           border: isDark ? '1px solid rgba(157,196,224,0.16)' : '1px solid #d7e1e7',
-          marginBottom: 32
+          marginBottom: 32,
         }}>
           <h1 style={{
-            fontSize: 34,
-            fontWeight: 700,
+            fontSize: 34, fontWeight: 700,
             color: isDark ? '#e7eef8' : '#132334',
-            margin: 0,
-            marginBottom: 10,
-            lineHeight: 1.1,
-          }}>Archaeal Proteome Project</h1>
-          <p style={{ fontSize: 15, color: isDark ? '#9cb0c4' : '#5f7282', margin: 0, maxWidth: 680, lineHeight: 1.5 }}>Explore protein coverage, modifications, and datasets across archaeal species.</p>
+            margin: 0, marginBottom: 6, lineHeight: 1.1,
+            fontFamily: 'Newsreader, Georgia, serif',
+          }}>
+            Archaeal Proteome Project
+          </h1>
+          <p style={{ fontSize: 15, color: isDark ? '#9cb0c4' : '#5f7282', margin: '0 0 28px', maxWidth: 680, lineHeight: 1.5 }}>
+            Explore protein coverage, modifications, and datasets across archaeal species.
+          </p>
 
-          <div style={{ marginTop: 32 }}>
-            <CoverageOverview
-              coverageData={coverageData}
-              coverageLoading={coverageLoading}
-              selectedSpecies={selectedSpeciesStats}
-            />
+          <CoverageOverview
+            coverageData={coverageData}
+            coverageLoading={coverageLoading}
+            selectedSpecies={selectedSpeciesStats}
+          />
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginBottom: 18 }}>
-              <div>
-                <div style={controlLabelStyle}>Select a Species</div>
-                <Autocomplete
-                  disablePortal
-                  options={speciesOptions}
-                  value={speciesValue}
-                  onChange={(e, v) => {
-                    setSpeciesValue(v);
-                    setShowTable(!!v);
-                    setShowDatasetGraphs(!!v);
-                    setTableSpeciesFilter(v?.value || '');
-                  }}
-                  renderInput={(params) => <TextField {...params} placeholder="Select species" sx={inputSx} />}
-                  isOptionEqualToValue={(option, value) => option.value === value.value}
-                  componentsProps={isDark ? { paper: { sx: { background: '#17223a', color: '#e6edf7', '& .MuiAutocomplete-option:hover': { background: 'rgba(255,255,255,0.08)' }, '& .MuiAutocomplete-option[aria-selected="true"]': { background: 'rgba(14,165,233,0.2)' } } } } : {}}
-                />
-              </div>
-              <div>
-                <div style={controlLabelStyle}>Search by Protein ID</div>
-                <Autocomplete
-                  disablePortal
-                  options={options}
-                  value={picked}
-                  onChange={(e, v) => {
-                    setPicked(v);
-                    if (v?.value) navigate(`/plot/${v.value}`);
-                  }}
-                  loading={optLoading}
-                  renderInput={(params) => <TextField {...params} placeholder="Enter HVO or UniProt ID" sx={inputSx} InputProps={{ ...params.InputProps, startAdornment: (<InputAdornment position="start"><SearchIcon sx={isDark ? { color: '#89a2c0' } : {}} /></InputAdornment>) }} />}
-                  isOptionEqualToValue={(option, value) => option.value === value.value}
-                  componentsProps={isDark ? { paper: { sx: { background: '#17223a', color: '#e6edf7', '& .MuiAutocomplete-option:hover': { background: 'rgba(255,255,255,0.08)' }, '& .MuiAutocomplete-option[aria-selected="true"]': { background: 'rgba(14,165,233,0.2)' } } } } : {}}
-                />
-              </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginBottom: 18 }}>
+            <div>
+              <div style={controlLabelStyle}>Select a Species</div>
+              <Autocomplete
+                disablePortal
+                options={speciesOptions}
+                value={speciesValue}
+                onChange={(e, v) => {
+                  setSpeciesValue(v);
+                  setShowTable(!!v);
+                  setShowDatasetGraphs(!!v);
+                  setTableSpeciesFilter(v?.value || '');
+                }}
+                renderInput={(params) => <TextField {...params} placeholder="Select species" sx={inputSx} />}
+                isOptionEqualToValue={(option, value) => option.value === value.value}
+                componentsProps={isDark ? { paper: { sx: { background: '#17223a', color: '#e6edf7', '& .MuiAutocomplete-option:hover': { background: 'rgba(255,255,255,0.08)' }, '& .MuiAutocomplete-option[aria-selected="true"]': { background: 'rgba(14,165,233,0.2)' } } } } : {}}
+              />
+            </div>
+            <div>
+              <div style={controlLabelStyle}>Search by Protein ID</div>
+              <Autocomplete
+                disablePortal
+                options={options}
+                value={picked}
+                onChange={(e, v) => {
+                  setPicked(v);
+                  if (v?.value) navigate(`/plot/${v.value}`);
+                }}
+                loading={optLoading}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    placeholder="Enter Protein ID or UniProt ID"
+                    sx={inputSx}
+                    InputProps={{
+                      ...params.InputProps,
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon sx={isDark ? { color: '#89a2c0' } : {}} />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                )}
+                isOptionEqualToValue={(option, value) => option.value === value.value}
+                componentsProps={isDark ? { paper: { sx: { background: '#17223a', color: '#e6edf7', '& .MuiAutocomplete-option:hover': { background: 'rgba(255,255,255,0.08)' }, '& .MuiAutocomplete-option[aria-selected="true"]': { background: 'rgba(14,165,233,0.2)' } } } } : {}}
+              />
             </div>
           </div>
 
           {speciesValue && coverageData.length > 0 && (
-            <div style={{ marginTop: 28, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 18 }}>
-              <div style={{
-                background: isDark ? 'rgba(15,25,38,0.75)' : '#f7fafc',
-                borderRadius: 14,
-                padding: '20px 24px',
-                border: isDark ? '1px solid rgba(157,196,224,0.14)' : '1px solid #d8e2e8',
-              }}>
-                <h3 style={{ fontSize: 20, fontWeight: 600, color: isDark ? '#e2e8f0' : '#132334', marginBottom: 4, textAlign: 'center' }}>Species Proteome Coverage</h3>
-                <p style={{ fontSize: 13, color: isDark ? '#9cb0c4' : '#5f7282', marginBottom: 14, textAlign: 'center' }}>Click a bar to select species</p>
-                <div style={{ display: 'flex', justifyContent: 'center' }}>
-                  <div ref={speciesCoverageChartRef}>
-                    <BarChart
-                      xAxis={[{
-                        data: speciesNames,
-                        scaleType: 'band',
-                        label: 'Species',
-                        tickLabelStyle: speciesTickStyle,
-                      }]}
-                      yAxis={[{ label: 'Coverage (%)' }]}
-                      series={[{
-                        data: coveragePercents,
-                        color: '#5f88ad',
-                        valueFormatter: (value) => `${value.toFixed(1)}%`,
-                      }]}
-                      width={speciesChartWidth}
-                      height={250}
-                      margin={{ bottom: speciesBottomMargin, left: 56, right: 8, top: 10 }}
-                      borderRadius={4}
-                      slotProps={{ bar: { style: { cursor: 'pointer' } } }}
-                      sx={{
-                        '& .MuiChartsAxis-line, & .MuiChartsAxis-tick': { stroke: isDark ? '#f8fafc' : '#64748b' },
-                        '& .MuiChartsAxis-tickLabel': { fill: isDark ? '#f8fafc' : '#334155' },
-                      }}
-                      onItemClick={(event, d) => {
-                        const clickedSpecies = speciesNames[d.dataIndex];
-                        if (!clickedSpecies) return;
-                        setSpeciesValue({ label: clickedSpecies, value: clickedSpecies });
-                        setTableSpeciesFilter(clickedSpecies);
-                        setShowTable(true);
-                        setShowDatasetGraphs(true);
-                      }}
+            <div style={{ marginTop: 24, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 18 }}>
+
+              {/* Coverage bar chart */}
+              <div style={panelStyle}>
+                <h3 style={{ fontSize: 15, fontWeight: 600, color: isDark ? '#e2e8f0' : '#132334', margin: '0 0 4px' }}>
+                  Species Proteome Coverage
+                </h3>
+                <p style={{ fontSize: 12, color: isDark ? '#7a9ab5' : '#718493', margin: '0 0 12px' }}>
+                  Click a bar to select species
+                </p>
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={coverageChartData} margin={{ top: 6, right: 6, bottom: 8, left: 4 }} barSize={36}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={chartGrid} vertical={false} />
+                    <XAxis
+                      dataKey="name"
+                      tick={<SpeciesTick fill={chartTickFill} />}
+                      tickLine={false}
+                      axisLine={{ stroke: chartAxisColor }}
+                      interval={0}
+                      height={44}
                     />
-                  </div>
-                </div>
+                    <YAxis
+                      tick={{ fill: chartTickFill, fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(v) => `${v}%`}
+                      width={42}
+                    />
+                    <RechartsTip
+                      {...tipStyle}
+                      formatter={(value) => [`${value.toFixed(1)}%`, 'Coverage']}
+                      labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName || ''}
+                    />
+                    <Bar dataKey="value" radius={[5, 5, 0, 0]} onClick={handleBarClick} cursor="pointer">
+                      {coverageChartData.map((entry, idx) => (
+                        <Cell
+                          key={idx}
+                          fill={entry.fullName === speciesValue?.value
+                            ? '#5f88ad'
+                            : isDark ? '#243d56' : '#a8c7de'}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
 
-              <div style={{
-                background: isDark ? 'rgba(15,25,38,0.75)' : '#f7fafc',
-                borderRadius: 14,
-                padding: '20px 24px',
-                border: isDark ? '1px solid rgba(157,196,224,0.14)' : '1px solid #d8e2e8',
-              }}>
-                <h3 style={{ fontSize: 20, fontWeight: 600, color: isDark ? '#e2e8f0' : '#132334', marginBottom: 4, textAlign: 'center' }}>Identified Proteins by Species</h3>
-                <p style={{ fontSize: 13, color: isDark ? '#9cb0c4' : '#5f7282', marginBottom: 14, textAlign: 'center' }}>Total proteins identified per species</p>
-                <div style={{ display: 'flex', justifyContent: 'center' }}>
-                  <div ref={speciesProteinCountChartRef}>
-                    <BarChart
-                      xAxis={[{
-                        data: speciesNames,
-                        scaleType: 'band',
-                        label: 'Species',
-                        tickLabelStyle: speciesTickStyle,
-                      }]}
-                      yAxis={[{ label: 'Identified proteins' }]}
-                      series={[{
-                        data: identifiedProteins,
-                        color: '#4f9b7e',
-                        valueFormatter: (value) => `${value.toLocaleString()} proteins`,
-                      }]}
-                      width={speciesChartWidth}
-                      height={250}
-                      margin={{ bottom: speciesBottomMargin, left: 56, right: 8, top: 10 }}
-                      borderRadius={4}
-                      sx={{
-                        '& .MuiChartsAxis-line, & .MuiChartsAxis-tick': { stroke: isDark ? '#f8fafc' : '#64748b' },
-                        '& .MuiChartsAxis-tickLabel': { fill: isDark ? '#f8fafc' : '#334155' },
-                      }}
+              {/* Proteins bar chart */}
+              <div style={panelStyle}>
+                <h3 style={{ fontSize: 15, fontWeight: 600, color: isDark ? '#e2e8f0' : '#132334', margin: '0 0 4px' }}>
+                  Identified Proteins by Species
+                </h3>
+                <p style={{ fontSize: 12, color: isDark ? '#7a9ab5' : '#718493', margin: '0 0 12px' }}>
+                  Total proteins identified per species
+                </p>
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={proteinsChartData} margin={{ top: 6, right: 6, bottom: 8, left: 4 }} barSize={36}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={chartGrid} vertical={false} />
+                    <XAxis
+                      dataKey="name"
+                      tick={<SpeciesTick fill={chartTickFill} />}
+                      tickLine={false}
+                      axisLine={{ stroke: chartAxisColor }}
+                      interval={0}
+                      height={44}
                     />
-                  </div>
-                </div>
+                    <YAxis
+                      tick={{ fill: chartTickFill, fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(v) => v.toLocaleString()}
+                      width={52}
+                    />
+                    <RechartsTip
+                      {...tipStyle}
+                      formatter={(value) => [value.toLocaleString(), 'Proteins']}
+                      labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName || ''}
+                    />
+                    <Bar dataKey="value" radius={[5, 5, 0, 0]} onClick={handleBarClick} cursor="pointer">
+                      {proteinsChartData.map((entry, idx) => (
+                        <Cell
+                          key={idx}
+                          fill={entry.fullName === speciesValue?.value
+                            ? '#4f9b7e'
+                            : isDark ? '#1c4a38' : '#8fcabb'}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
+
             </div>
           )}
 

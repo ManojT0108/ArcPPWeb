@@ -3,10 +3,8 @@ const Protein = require('./model/proteins.js');
 
 // === Main function to extract relevant data ===
 async function getPlotDataForProtein(targetId) {
-  const proteinDoc = await Protein.findOne(
-    { protein_id: targetId },
-    { _id: 1, sequence: 1 }
-  ).lean();
+  let proteinDoc = await Protein.findOne({ hvo_id: targetId }, { _id: 1, sequence: 1 }).lean();
+  if (!proteinDoc) proteinDoc = await Protein.findOne({ protein_id: targetId }, { _id: 1, sequence: 1 }).lean();
 
   if (!proteinDoc || !proteinDoc.sequence) {
     throw new Error(`Protein ${targetId} not found in database`);
