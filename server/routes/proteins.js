@@ -305,6 +305,138 @@ router.get('/proteins/:protein_id/page', async (req, res) => {
   }
 });
 
+// Features for Nightingale tracks — reshapes cached sequence + mods + peptides
+router.get('/proteins/:protein_id/features', async (req, res) => {
+  const displayId = req.params.protein_id;
+  try {
+    // Try Redis page bundle first, fall back to the DB-backed endpoints
+    let page = await getProteinPage(displayId);
+    if (!page) {
+      const doc = await findProteinByDisplayId(displayId, { hvo_id: 1, protein_id: 1 });
+      const alt = doc && (doc.hvo_id || doc.protein_id);
+      if (alt && alt !== displayId) page = await getProteinPage(alt);
+    }
+
+    let sequence, modifications;
+    if (page) {
+      sequence = page.sequence.sequence;
+      modifications = page.sequence.modifications || [];
+    } else {
+      const doc = await findProteinByDisplayId(displayId, { _id: 1, sequence: 1 });
+      if (!doc || !doc.sequence) return res.status(404).json({ error: 'Protein not found' });
+      sequence = doc.sequence;
+      const peps = await Peptide.find(
+        { protein_id: doc._id, qValue: { $lte: 0.005 } },
+        { sequence: 1, startIndex: 1, endIndex: 1, modification: 1, _id: 0 },
+      ).lean();
+      modifications = [];
+      const seen = new Set();
+      const re = /(.+):(\d+)$/;
+      for (const p of peps) {
+        let colored = false;
+        if (p.modification) {
+          for (const part of String(p.modification).split(';')) {
+            const m = re.exec(part.trim());
+            if (!m) continue;
+            const type = canonicalModType(m[1]);
+            if (!type) continue;
+            const rel = parseInt(m[2], 10);
+            const abs = p.startIndex + rel - 1;
+            if (abs < 1 || abs > sequence.length) continue;
+            const key = `${abs}|${type}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            modifications.push({
+              position: abs, type, color: MOD_COLORS[type],
+              peptideStart: p.startIndex, peptideEnd: p.endIndex, peptideSequence: p.sequence,
+            });
+            colored = true;
+          }
+        }
+        if (!colored) {
+          modifications.push({
+            position: null, type: 'Covered', color: null,
+            peptideStart: p.startIndex, peptideEnd: p.endIndex, peptideSequence: p.sequence,
+          });
+        }
+      }
+    }
+
+    const length = sequence.length;
+
+    // Peptides track — dedupe by start-end
+    const peptideMap = new Map();
+    for (const m of modifications) {
+      if (typeof m.peptideStart !== 'number' || typeof m.peptideEnd !== 'number') continue;
+      const k = `${m.peptideStart}-${m.peptideEnd}`;
+      if (!peptideMap.has(k)) {
+        peptideMap.set(k, {
+          accession: `pep-${peptideMap.size}`,
+          start: m.peptideStart,
+          end: m.peptideEnd,
+          color: '#6FA8DC',
+          shape: 'rectangle',
+          tooltipContent: `<strong>Peptide</strong><br/>${m.peptideSequence}<br/>Position: ${m.peptideStart}-${m.peptideEnd}`,
+        });
+      }
+    }
+
+    // Modifications track — colored points
+    const modFeatures = [];
+    const modSeen = new Set();
+    for (const m of modifications) {
+      if (m.position == null || !m.color) continue;
+      const k = `${m.position}|${m.type}`;
+      if (modSeen.has(k)) continue;
+      modSeen.add(k);
+      modFeatures.push({
+        accession: `mod-${m.type}-${m.position}`,
+        start: m.position,
+        end: m.position,
+        color: m.color,
+        shape: 'circle',
+        type: m.type,
+        tooltipContent: `<strong>${m.type}</strong> modification<br/>Position: ${m.position}`,
+      });
+    }
+
+    // Enzyme sites — derived from sequence
+    const trypsinSites = [];
+    const glucSites = [];
+    for (let i = 0; i < length; i++) {
+      const aa = sequence[i];
+      const pos = i + 1;
+      if (aa === 'K' || aa === 'R') {
+        trypsinSites.push({
+          accession: `tryp-${pos}`, start: pos, end: pos,
+          color: '#14B8A6', shape: 'circle',
+          tooltipContent: `<strong>Trypsin site</strong><br/>${aa} at position ${pos}`,
+        });
+      }
+      if (aa === 'D' || aa === 'E') {
+        glucSites.push({
+          accession: `gluc-${pos}`, start: pos, end: pos,
+          color: '#86EFAC', shape: 'circle',
+          tooltipContent: `<strong>GluC site</strong><br/>${aa} at position ${pos}`,
+        });
+      }
+    }
+
+    res.json({
+      proteinId: displayId,
+      sequence,
+      length,
+      peptides: Array.from(peptideMap.values()),
+      modifications: modFeatures,
+      trypsinSites,
+      glucSites,
+    });
+  } catch (err) {
+    console.error('features endpoint error:', err);
+    res.status(500).json({ error: 'Failed to build features' });
+  }
+});
+
 // PSM by Dataset (Redis only)
 router.get('/proteins/:proteinId/psms-by-dataset', async (req, res) => {
   try {

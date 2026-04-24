@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { Tooltip } from '@mui/material';
@@ -6,7 +6,7 @@ import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 
 import NavBar from '../components/NavBar';
-import PeptideCoveragePlot from '../components/PeptideCoveragePlot';
+import NightingalePeptidePlot from '../components/NightingalePeptidePlot';
 import PSMsByDatasetChart from '../components/PSMsByDatasetChart';
 import GlassCard from '../components/GlassCard';
 import SequenceViewer from '../components/SequenceViewer';
@@ -24,7 +24,6 @@ export default function ProteinPlotPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   const [selectedPosition, setSelectedPosition] = useState(null);
-  const plotRef = useRef(null);
 
   const pageBgStyle = {
     minHeight: '100vh',
@@ -294,9 +293,8 @@ export default function ProteinPlotPage() {
           </div>
         </section>
 
-        {/* Full-width peptide coverage plot */}
-        <PeptideCoveragePlot
-          ref={plotRef}
+        {/* Full-width peptide coverage plot (Nightingale) */}
+        <NightingalePeptidePlot
           hvoId={hvoId}
           mode={isDark ? 'dark' : 'light'}
           zoomToPosition={selectedPosition}
