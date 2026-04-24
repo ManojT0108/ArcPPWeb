@@ -1,12 +1,34 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
+const { redisClient } = require('../services/psmRedisService');
 
-const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12h
+const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12h in-memory L1
 const DATASET_CACHE = new Map();
 const SOURCE_BASE = 'https://proteomecentral.proteomexchange.org';
 const SCRAPE_TIMEOUT_MS = 6000;
 const REACHABILITY_BACKOFF_MS = 15 * 60 * 1000;
+const REDIS_KEY_PREFIX = 'dataset:summary:';
 let unreachableUntilTs = 0;
+
+async function redisGet(id) {
+  try {
+    if (!redisClient?.isOpen) return null;
+    const raw = await redisClient.get(REDIS_KEY_PREFIX + id);
+    return raw ? JSON.parse(raw) : null;
+  } catch (err) {
+    console.warn('Redis read failed for dataset summary', id, err.message);
+    return null;
+  }
+}
+
+async function redisSet(id, data) {
+  try {
+    if (!redisClient?.isOpen) return;
+    await redisClient.set(REDIS_KEY_PREFIX + id, JSON.stringify(data));
+  } catch (err) {
+    console.warn('Redis write failed for dataset summary', id, err.message);
+  }
+}
 
 function preferredDatasetUrl(datasetId) {
   const id = String(datasetId || '').trim().toUpperCase();
@@ -66,8 +88,18 @@ function fallbackSummary(datasetId) {
 }
 
 async function scrapeProteomeCentral(datasetId) {
+  // L1: in-memory cache
   const cached = cacheGet(datasetId);
   if (cached) return cached;
+
+  // L2: Redis — survives server restarts and PRIDE outages
+  const fromRedis = await redisGet(datasetId);
+  if (fromRedis) {
+    cacheSet(datasetId, fromRedis);
+    return fromRedis;
+  }
+
+  // Circuit breaker only gates the network call, not cached reads above
   if (Date.now() < unreachableUntilTs) return fallbackSummary(datasetId);
 
   const url = `${SOURCE_BASE}/cgi/GetDataset?ID=${encodeURIComponent(
@@ -83,6 +115,7 @@ async function scrapeProteomeCentral(datasetId) {
       timeout: SCRAPE_TIMEOUT_MS,
     });
     html = response.data;
+    unreachableUntilTs = 0;
   } catch (err) {
     if (['ENOTFOUND', 'ECONNREFUSED', 'ECONNABORTED', 'ETIMEDOUT'].includes(err?.code)) {
       unreachableUntilTs = Date.now() + REACHABILITY_BACKOFF_MS;
@@ -177,16 +210,13 @@ async function scrapeProteomeCentral(datasetId) {
 
   const result = { ...fallbackSummary(datasetId), title, firstPublicationRow, citations };
   cacheSet(datasetId, result);
+  await redisSet(datasetId, result);
   return result;
 }
 
 async function fetchSummariesBatched(ids, batchSize = 4) {
   const out = [];
   for (let i = 0; i < ids.length; i += batchSize) {
-    if (Date.now() < unreachableUntilTs) {
-      out.push(...ids.slice(i).map((id) => fallbackSummary(id)));
-      break;
-    }
     const batch = ids.slice(i, i + batchSize);
     const results = await Promise.all(
       batch.map(async (id) => {
