@@ -16,12 +16,18 @@ function loadNightingale() {
 }
 
 const TRACK_HEIGHT = 44;
+// Nightingale's circle shape is drawn at a hardcoded y=0..10 instead of being
+// centered by featureHeight (see node_modules/@nightingale-elements/nightingale-track).
+// Using a small trackHeight (≤12) makes featureHeight clamp to minHeight (10),
+// which puts the circle's geometric center at the SVG center — so it lines up
+// with the label when the SVG is flex-centered inside the row.
+const CIRCLE_TRACK_HEIGHT = 12;
 
 const TRACKS = [
-  { key: 'peptides',      label: 'Peptides',       dataKey: 'peptides',      layout: 'non-overlapping' },
-  { key: 'modifications', label: 'Modifications',  dataKey: 'modifications', layout: 'default' },
-  { key: 'gluc',          label: 'GluC sites',     dataKey: 'glucSites',     layout: 'default' },
-  { key: 'trypsin',       label: 'Trypsin sites',  dataKey: 'trypsinSites',  layout: 'default' },
+  { key: 'peptides',      label: 'Peptides',       dataKey: 'peptides',      layout: 'non-overlapping', trackHeight: TRACK_HEIGHT },
+  { key: 'modifications', label: 'Modifications',  dataKey: 'modifications', layout: 'default',         trackHeight: CIRCLE_TRACK_HEIGHT },
+  { key: 'gluc',          label: 'GluC sites',     dataKey: 'glucSites',     layout: 'default',         trackHeight: CIRCLE_TRACK_HEIGHT },
+  { key: 'trypsin',       label: 'Trypsin sites',  dataKey: 'trypsinSites',  layout: 'default',         trackHeight: CIRCLE_TRACK_HEIGHT },
 ];
 
 export default function NightingalePeptidePlot({ hvoId, mode = 'light', zoomToPosition = null }) {
@@ -105,22 +111,21 @@ export default function NightingalePeptidePlot({ hvoId, mode = 'light', zoomToPo
     </span>
   ), [isDark]);
 
+  const LABEL_WIDTH = 150;
+
   const labelStyle = {
-    width: 150,
     fontSize: 12,
-    color: isDark ? '#9fb4ca' : '#475569',
-    fontWeight: 500,
+    color: isDark ? '#e6edf7' : '#0f172a',
+    fontWeight: 600,
     paddingRight: 8,
     textAlign: 'right',
-    lineHeight: `${TRACK_HEIGHT}px`,
-    flexShrink: 0,
+    lineHeight: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
   };
 
-  const trackCellStyle = {
-    flex: 1,
-    minWidth: 0,
-    borderBottom: `1px solid ${isDark ? 'rgba(157,196,224,0.08)' : '#e5edf3'}`,
-  };
+  const customElemStyle = { display: 'block', verticalAlign: 'top', width: '100%' };
 
   if (err) {
     return (
@@ -148,15 +153,35 @@ export default function NightingalePeptidePlot({ hvoId, mode = 'light', zoomToPo
         borderRadius: 12,
         padding: '14px 18px 18px',
       }}>
+        <style>{`
+          .ngl-grid nightingale-navigation,
+          .ngl-grid nightingale-sequence,
+          .ngl-grid nightingale-track,
+          .ngl-grid nightingale-navigation svg,
+          .ngl-grid nightingale-sequence svg,
+          .ngl-grid nightingale-track svg {
+            display: block !important;
+            vertical-align: top !important;
+          }
+        `}</style>
         {/* eslint-disable-next-line react/no-unknown-property */}
         <nightingale-manager
           ref={managerRef}
           reflected-attributes="display-start,display-end,highlight"
         >
-          {/* Navigation ruler */}
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-            <div style={labelStyle}>Position</div>
-            <div style={trackCellStyle}>
+          <div
+            className="ngl-grid"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `${LABEL_WIDTH}px 1fr`,
+              gridAutoRows: 'min-content',
+              alignItems: 'center',
+              rowGap: 4,
+            }}
+          >
+            {/* Navigation ruler */}
+            <div style={{ ...labelStyle, height: 40 }}>Position</div>
+            <div style={{ height: 40 }}>
               <nightingale-navigation
                 ref={navigationRef}
                 length={features.length}
@@ -164,14 +189,13 @@ export default function NightingalePeptidePlot({ hvoId, mode = 'light', zoomToPo
                 display-end={features.length}
                 height="40"
                 margin-color="transparent"
+                style={customElemStyle}
               />
             </div>
-          </div>
 
-          {/* Sequence */}
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
-            <div style={labelStyle}>Sequence</div>
-            <div style={trackCellStyle}>
+            {/* Sequence */}
+            <div style={{ ...labelStyle, height: 32 }}>Sequence</div>
+            <div style={{ height: 32 }}>
               <nightingale-sequence
                 ref={sequenceRef}
                 length={features.length}
@@ -181,31 +205,30 @@ export default function NightingalePeptidePlot({ hvoId, mode = 'light', zoomToPo
                 margin-color="transparent"
                 use-ctrl-to-zoom
                 highlight-event="onmouseover"
+                style={customElemStyle}
               />
             </div>
-          </div>
 
-          {/* Feature tracks */}
-          {TRACKS.map((t) => (
-            <div
-              key={t.key}
-              style={{ display: 'flex', alignItems: 'center', ...trackCellStyle, borderBottom: 'none' }}
-            >
-              <div style={labelStyle}>{t.label}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <nightingale-track
-                  ref={(el) => { trackRefs.current[t.key] = el; }}
-                  length={features.length}
-                  display-start="1"
-                  display-end={features.length}
-                  height={TRACK_HEIGHT}
-                  layout={t.layout}
-                  margin-color="transparent"
-                  highlight-event="onmouseover"
-                />
-              </div>
-            </div>
-          ))}
+            {/* Feature tracks */}
+            {TRACKS.map((t) => (
+              <React.Fragment key={t.key}>
+                <div style={{ ...labelStyle, height: TRACK_HEIGHT }}>{t.label}</div>
+                <div style={{ height: TRACK_HEIGHT, display: 'flex', alignItems: 'center' }}>
+                  <nightingale-track
+                    ref={(el) => { trackRefs.current[t.key] = el; }}
+                    length={features.length}
+                    display-start="1"
+                    display-end={features.length}
+                    height={t.trackHeight}
+                    layout={t.layout}
+                    margin-color="transparent"
+                    highlight-event="onmouseover"
+                    style={customElemStyle}
+                  />
+                </div>
+              </React.Fragment>
+            ))}
+          </div>
         </nightingale-manager>
 
         {/* Legend */}

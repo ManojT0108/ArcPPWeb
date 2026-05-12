@@ -31,7 +31,7 @@ function SpeciesTick({ x, y, payload, fill }) {
   return (
     <g transform={`translate(${x},${y})`}>
       <text dy="1.1em" textAnchor="middle" fill={fill} fontSize={11} fontStyle="italic">{abbrev}</text>
-      {name && <text dy="2.4em" textAnchor="middle" fill={fill} fontSize={11}>{name}</text>}
+      {name && <text dy="2.4em" textAnchor="middle" fill={fill} fontSize={11} fontStyle="italic">{name}</text>}
     </g>
   );
 }
@@ -97,15 +97,15 @@ export default function HomePage() {
   const [sort, setSort] = useState({ key: 'hvoId', dir: 'asc' });
 
   useEffect(() => {
+    if (!speciesValue) return;
     if (!speciesOptions.length) return;
-    const exists = speciesValue && speciesOptions.some((s) => s.value === speciesValue.value);
-    if (exists) return;
-
-    const first = speciesOptions[0];
-    setSpeciesValue(first);
-    setTableSpeciesFilter(first.value);
-    setShowTable(true);
-    setShowDatasetGraphs(true);
+    const exists = speciesOptions.some((s) => s.value === speciesValue.value);
+    if (!exists) {
+      setSpeciesValue(null);
+      setTableSpeciesFilter('');
+      setShowTable(false);
+      setShowDatasetGraphs(false);
+    }
   }, [speciesOptions, speciesValue]);
 
   const onSort = (key) => {
@@ -344,6 +344,19 @@ export default function HomePage() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div
+              onClick={() => navigate('/about')}
+              style={{
+                padding: '8px 14px',
+                background: isDark ? 'rgba(157,196,224,0.14)' : '#e6eef4',
+                color: isDark ? '#d6e6f2' : '#2f5675',
+                fontWeight: 600, fontSize: 13,
+                border: `1px solid ${isDark ? 'rgba(157,196,224,0.28)' : '#c4d3df'}`,
+                borderRadius: 8, cursor: 'pointer',
+              }}
+            >
+              About
+            </div>
+            <div
               onClick={() => navigate('/datasets')}
               style={{
                 padding: '8px 14px',
@@ -416,7 +429,16 @@ export default function HomePage() {
                   setShowDatasetGraphs(!!v);
                   setTableSpeciesFilter(v?.value || '');
                 }}
-                renderInput={(params) => <TextField {...params} placeholder="Select species" sx={inputSx} />}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    placeholder="Select species"
+                    sx={{ ...inputSx, '& .MuiInputBase-input': { ...(inputSx?.['& .MuiInputBase-input'] || {}), fontStyle: 'italic' } }}
+                  />
+                )}
+                renderOption={(props, option) => (
+                  <li {...props}><em>{option.label}</em></li>
+                )}
                 isOptionEqualToValue={(option, value) => option.value === value.value}
                 componentsProps={isDark ? { paper: { sx: { background: '#17223a', color: '#e6edf7', '& .MuiAutocomplete-option:hover': { background: 'rgba(255,255,255,0.08)' }, '& .MuiAutocomplete-option[aria-selected="true"]': { background: 'rgba(14,165,233,0.2)' } } } } : {}}
               />
@@ -457,7 +479,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          {speciesValue && coverageData.length > 0 && (
+          {coverageData.length > 0 && (
             <div style={{ marginTop: 24, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 18 }}>
 
               {/* Coverage bar chart */}

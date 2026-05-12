@@ -56,7 +56,7 @@ async function processProteinBatch(proteins) {
         speciesId: doc.species_id,
         summary: {
           hvoId: pid,
-          uniProtId: (doc.protein_id && doc.protein_id !== pid) ? doc.protein_id : null,
+          uniProtId: (doc.protein_id && doc.protein_id.trim() && doc.protein_id.trim() !== '-') ? doc.protein_id.trim() : pid,
           species_id: doc.species_id || null,
           description: doc.description || null,
           psmCount,

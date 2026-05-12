@@ -5,6 +5,7 @@ import { ThemeProvider } from './ThemeContext';
 const HomePage = lazy(() => import('./pages/HomePage'));
 const DatasetsPage = lazy(() => import('./pages/DatasetsPage'));
 const ProteinPlotPage = lazy(() => import('./pages/ProteinPlotPage'));
+const AboutPage = lazy(() => import('./pages/AboutPage'));
 
 function RouteFallback() {
   return (
@@ -30,6 +31,7 @@ export default function App() {
         <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route path="/" element={<HomePage />} />
+            <Route path="/about" element={<AboutPage />} />
             <Route path="/datasets" element={<DatasetsPage />} />
             <Route path="/plot/:hvoId" element={<ProteinPlotPage />} />
           </Routes>

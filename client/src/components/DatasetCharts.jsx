@@ -89,20 +89,19 @@ export default function DatasetCharts({
             {datasetRows.length === 0 ? (
               <div style={{ padding: 24, color: mutedColor, textAlign: 'center', background: isDark ? 'rgba(255,255,255,0.03)' : '#f8fafc', borderRadius: 8 }}>No data</div>
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <ReBarChart data={datasetRows} margin={{ top: 8, right: 16, left: 8, bottom: 50 }}>
+              <ResponsiveContainer width="100%" height={320}>
+                <ReBarChart data={datasetRows} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
                   <ReCartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'} vertical={false} />
                   <ReXAxis
                     dataKey="dataset"
                     interval={0}
                     angle={-45}
                     textAnchor="end"
-                    height={52}
+                    height={78}
                     tick={{ fill: axisStroke, fontSize: 10 }}
                     axisLine={{ stroke: axisStroke }}
                     tickLine={false}
-                    tickFormatter={(v) => v.startsWith('PXD') ? v.slice(3) : v}
-                    label={{ value: 'Dataset', position: 'insideBottom', offset: -2, fill: axisStroke, fontSize: 12 }}
+                    tickMargin={6}
                   />
                   <ReYAxis
                     tick={{ fill: axisStroke, fontSize: 11 }}

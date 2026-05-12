@@ -104,7 +104,7 @@ async function processSpecies(speciesId) {
     const key = `${slug}:${pid}`;
     output[key] = {
       hvoId: pid,
-      uniProtId: (doc.protein_id && doc.protein_id !== pid) ? doc.protein_id : null,
+      uniProtId: (doc.protein_id && doc.protein_id.trim() && doc.protein_id.trim() !== '-') ? doc.protein_id.trim() : pid,
       species_id: speciesId,
       description: doc.description || null,
       psmCount,

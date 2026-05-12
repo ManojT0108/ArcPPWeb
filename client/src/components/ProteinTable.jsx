@@ -73,13 +73,14 @@ export default function ProteinTable({
   } : {};
 
   const downloadCSV = () => {
-    const headers = ['Protein ID', 'UniProt ID', 'PSMs', 'Coverage (%)', 'Datasets', 'Modifications', 'Description'];
+    const headers = ['UniProt ID', 'Protein ID', 'PSMs', 'Coverage (%)', 'Datasets', 'Modifications', 'Description'];
     const csvRows = [headers.join(',')];
     processedRows.forEach(r => {
       const datasets = Array.isArray(r.datasets) ? r.datasets.join('; ') : '';
       const modifications = Array.isArray(r.modifications) ? r.modifications.join('; ') : '';
       const description = (r.description || '').replace(/,/g, ';');
-      csvRows.push([r.hvoId || '', r.uniProtId || '', r.psmCount ?? '', Number.isFinite(r.coveragePercent) ? r.coveragePercent.toFixed(1) : '', datasets, modifications, description].join(','));
+      const uniProt = r.uniProtId || r.hvoId || '';
+      csvRows.push([uniProt, r.hvoId || '', r.psmCount ?? '', Number.isFinite(r.coveragePercent) ? r.coveragePercent.toFixed(1) : '', datasets, modifications, description].join(','));
     });
     const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -119,7 +120,7 @@ export default function ProteinTable({
               value={tableSpeciesFilter}
               label="Filter by Species"
               onChange={(e) => setTableSpeciesFilter(e.target.value)}
-              sx={muiSelectSx}
+              sx={{ ...muiSelectSx, fontStyle: 'italic' }}
               MenuProps={isDark ? {
                 PaperProps: {
                   sx: { background: '#17223a', color: '#e6edf7', '& .MuiMenuItem-root:hover': { background: 'rgba(255,255,255,0.08)' } }
@@ -127,7 +128,7 @@ export default function ProteinTable({
               } : {}}
             >
               {(speciesOptions.length > 0 ? speciesOptions : [{ label: 'Haloferax volcanii', value: 'Haloferax volcanii' }]).map((species) => (
-                <MenuItem key={species.value} value={species.value}>{species.label}</MenuItem>
+                <MenuItem key={species.value} value={species.value} sx={{ fontStyle: 'italic' }}>{species.label}</MenuItem>
               ))}
             </Select>
           </FormControl>
@@ -176,8 +177,8 @@ export default function ProteinTable({
         fontWeight: 600,
         background: isDark ? 'rgba(12,18,34,0.4)' : 'transparent',
       }}>
-        <div style={{ cursor: 'pointer' }} onClick={() => onSort('hvoId')}>Protein ID {sortIcon('hvoId')}</div>
         <div style={{ cursor: 'pointer' }} onClick={() => onSort('uniProtId')}>UniProt ID {sortIcon('uniProtId')}</div>
+        <div style={{ cursor: 'pointer' }} onClick={() => onSort('hvoId')}>Protein ID {sortIcon('hvoId')}</div>
         <div style={{ cursor: 'pointer' }} onClick={() => onSort('psmCount')}>PSMs {sortIcon('psmCount')}</div>
         <div style={{ cursor: 'pointer' }} onClick={() => onSort('coveragePercent')}>Coverage {sortIcon('coveragePercent')}</div>
         <div>Datasets</div>
@@ -221,12 +222,26 @@ export default function ProteinTable({
                 e.currentTarget.style.background = 'transparent';
               }}
             >
+              <div style={{ fontSize: 14 }}>
+                {(() => {
+                  const accession = r.uniProtId || r.hvoId;
+                  return accession ? (
+                    <a
+                      href={`https://www.uniprot.org/uniprotkb/${encodeURIComponent(accession)}/entry`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: isDark ? '#7dd3fc' : '#0369a1', textDecoration: 'underline', fontWeight: 600 }}
+                    >
+                      {accession}
+                    </a>
+                  ) : '\u2014';
+                })()}
+              </div>
               <div>
                 <Link to={`/plot/${r.hvoId}`} style={{ color: isDark ? '#a9c9df' : '#325f86', textDecoration: 'none', fontWeight: 600 }}>
                   {r.hvoId}
                 </Link>
               </div>
-              <div style={{ fontSize: 14, color: mutedColor }}>{r.uniProtId || '\u2014'}</div>
               <div style={{ fontSize: 14, color: textColor }}>{r.psmCount ?? '\u2014'}</div>
               <div style={{ fontSize: 14, color: textColor }}>
                 {Number.isFinite(r.coveragePercent) ? `${r.coveragePercent.toFixed(1)}%` : '\u2014'}

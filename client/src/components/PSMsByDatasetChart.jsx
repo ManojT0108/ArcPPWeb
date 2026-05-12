@@ -148,21 +148,20 @@ function PSMsByDatasetChart({ proteinId, mode = 'dark' }) {
   // Main render
   return (
     <GlassCard title="PSMs by Dataset" style={cardStyle} variant={cardVariant}>
-      <ResponsiveContainer width="100%" height={280}>
-        <BarChart data={chartData} margin={{ top: 8, right: 16, left: 8, bottom: 50 }}>
+      <ResponsiveContainer width="100%" height={320}>
+        <BarChart data={chartData} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'} vertical={false} />
 
           <XAxis
             dataKey="dataset"
             angle={-45}
             textAnchor="end"
-            height={52}
+            height={78}
             interval={0}
             tick={{ fill: mutedColor, fontSize: 11 }}
             axisLine={{ stroke: axisColor }}
             tickLine={false}
-            tickFormatter={(v) => v.startsWith('PXD') ? v.slice(3) : v}
-            label={{ value: 'Dataset identifier', position: 'insideBottom', offset: -2, fill: mutedColor, fontSize: 12 }}
+            tickMargin={6}
           />
 
           <YAxis
@@ -174,7 +173,7 @@ function PSMsByDatasetChart({ proteinId, mode = 'dark' }) {
 
           <Tooltip content={<CustomTooltip isDark={isDark} />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }} />
 
-          <Bar dataKey="PSMs" radius={[6, 6, 0, 0]} animationDuration={800}>
+          <Bar dataKey="PSMs" radius={[6, 6, 0, 0]} animationDuration={800} minPointSize={3}>
             {chartData.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={getBarColor(index, chartData.length)} />
             ))}

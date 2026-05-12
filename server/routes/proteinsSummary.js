@@ -179,10 +179,11 @@ router.get('/species/:speciesId/proteins-summary', async (req, res) => {
             modifications = Array.from(modSet).sort();
           } catch {}
 
+          const cleanProteinId = (doc.protein_id || '').trim();
+          const uniProtId = (cleanProteinId && cleanProteinId !== '-') ? cleanProteinId : pid;
           return {
             hvoId: pid,
-            // only show uniProtId when it differs from the display ID (i.e. HVO proteins)
-            uniProtId: (doc.protein_id && doc.protein_id !== pid) ? doc.protein_id : '',
+            uniProtId,
             species_id: doc.species_id || '',
             psmCount,
             coveragePercent,

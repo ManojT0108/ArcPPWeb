@@ -5,7 +5,8 @@
  *
  * - Waits for Redis to be reachable (up to 30 s)
  * - Checks sentinel key `seed:version` — skips if already seeded
- * - Loads psms:* and protein:summary:* keys from JSON seed files
+ * - Loads protein:summary:* and protein:page:* keys from JSON seed files
+ *   (the legacy psms:* cache was removed when PSM-by-dataset moved to MongoDB)
  * - Sets sentinel key so subsequent restarts are instant
  */
 
@@ -13,13 +14,12 @@ const fs = require('fs');
 const path = require('path');
 const redis = require('redis');
 
-const SEED_VERSION = '3.0';
+const SEED_VERSION = '4.0';
 
 const REDIS_HOST = process.env.REDIS_HOST || 'localhost';
 const REDIS_PORT = process.env.REDIS_PORT || 6379;
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
-const PSM_FILE = path.join(DATA_DIR, 'redis-seed-psms.json');
 const SUMMARY_FILE = path.join(DATA_DIR, 'redis-seed-summaries.json');
 const PAGE_FILE = path.join(DATA_DIR, 'redis-seed-pages.json');
 
@@ -51,7 +51,6 @@ async function loadFile(client, filePath, prefix, label) {
   const entries = Object.entries(map);
   log(`Loading ${entries.length} ${label} entries...`);
 
-  // Pipeline in batches of 500 for efficiency
   const BATCH = 500;
   for (let i = 0; i < entries.length; i += BATCH) {
     const batch = entries.slice(i, i + BATCH);
@@ -75,23 +74,21 @@ async function main() {
   await waitForRedis(client);
   log('Connected to Redis');
 
-  // Check sentinel
   const current = await client.get('seed:version');
   if (current === SEED_VERSION) {
-    log('Redis already seeded (v' + SEED_VERSION + '). Skipping.');
+    log(`Redis already seeded (v${SEED_VERSION}). Skipping.`);
     await client.quit();
     return;
   }
 
   const start = Date.now();
-  const psmCount = await loadFile(client, PSM_FILE, 'psms:', 'PSM');
   const sumCount = await loadFile(client, SUMMARY_FILE, 'protein:summary:', 'summary');
   const pageCount = await loadFile(client, PAGE_FILE, 'protein:page:', 'page');
 
   await client.set('seed:version', SEED_VERSION);
 
   const elapsed = ((Date.now() - start) / 1000).toFixed(2);
-  log(`Redis seeding complete — ${psmCount} PSM + ${sumCount} summary + ${pageCount} page entries in ${elapsed}s`);
+  log(`Redis seeding complete — ${sumCount} summary + ${pageCount} page entries in ${elapsed}s`);
 
   await client.quit();
 }

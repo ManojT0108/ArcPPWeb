@@ -54,6 +54,9 @@ export default function NavBar() {
         <NavLink to="/" style={({ isActive }) => ({ ...link, ...(isActive ? active : null) })}>
           Home
         </NavLink>
+        <NavLink to="/about" style={({ isActive }) => ({ ...link, ...(isActive ? active : null) })}>
+          About
+        </NavLink>
         <NavLink to="/datasets" style={({ isActive }) => ({ ...link, ...(isActive ? active : null) })}>
           Datasets
         </NavLink>

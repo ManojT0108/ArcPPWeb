@@ -2,7 +2,8 @@ const router = require('express').Router();
 const Protein = require('../model/proteins');
 const Peptide = require('../model/peptides');
 const { resolveProteinId } = require('../services/proteinIdResolver');
-const { getPsmsByDataset, getProteinPage } = require('../services/psmRedisService');
+const { getProteinPage } = require('../services/psmRedisService');
+const { getPsmsByDataset } = require('../services/psmMongoService');
 const { getProteinCoverage } = require('../coverage');
 const { getPlotDataForProtein } = require('../plotGenerator');
 const { MOD_COLORS, HVO_RE, UNIPROT_RE } = require('../utils/constants');
@@ -143,7 +144,10 @@ router.get('/proteins/:protein_id/sequence', async (req, res) => {
     const sequence = proteinDoc.sequence;
 
     const peptideDocs = await Peptide.find(
-      { protein_id: proteinDoc._id, qValue: { $lte: 0.005 } },
+      {
+        protein_id: proteinDoc._id,
+        $or: [{ qValue: { $lte: 0.005 } }, { qValue: null }, { qValue: { $exists: false } }],
+      },
       { sequence: 1, startIndex: 1, endIndex: 1, modification: 1, _id: 0 }
     ).lean();
     const rows = peptideDocs.map(p => ({
@@ -326,7 +330,10 @@ router.get('/proteins/:protein_id/features', async (req, res) => {
       if (!doc || !doc.sequence) return res.status(404).json({ error: 'Protein not found' });
       sequence = doc.sequence;
       const peps = await Peptide.find(
-        { protein_id: doc._id, qValue: { $lte: 0.005 } },
+        {
+          protein_id: doc._id,
+          $or: [{ qValue: { $lte: 0.005 } }, { qValue: null }, { qValue: { $exists: false } }],
+        },
         { sequence: 1, startIndex: 1, endIndex: 1, modification: 1, _id: 0 },
       ).lean();
       modifications = [];
@@ -437,18 +444,14 @@ router.get('/proteins/:protein_id/features', async (req, res) => {
   }
 });
 
-// PSM by Dataset (Redis only)
+// PSM by Dataset — direct indexed match on PSMs.protein_id, grouped by dataSet_id.
+// Powered by the rebuilt MongoDB (TestArcPP2). Replaces the 4-stage join chain
+// and the Redis psms:* cache.
 router.get('/proteins/:proteinId/psms-by-dataset', async (req, res) => {
   try {
     const { proteinId } = req.params;
     const startTime = Date.now();
-    let data = [];
-
-    try {
-      data = await getPsmsByDataset(proteinId);
-    } catch (redisErr) {
-      console.log('Redis PSM lookup failed:', redisErr.message);
-    }
+    const data = await getPsmsByDataset(proteinId);
 
     if (!data || data.length === 0) {
       return res.status(404).json({
@@ -463,7 +466,7 @@ router.get('/proteins/:proteinId/psms-by-dataset', async (req, res) => {
       success: true,
       proteinId,
       data,
-      source: 'redis',
+      source: 'mongo',
       responseTimeMs: Date.now() - startTime
     });
   } catch (error) {
