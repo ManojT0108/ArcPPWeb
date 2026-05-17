@@ -1,8 +1,7 @@
 #!/bin/sh
 set -e
 
-echo "[entrypoint] Seeding Redis if needed..."
-node scripts/seedRedis.js
-
+# The Redis protein caches are rebuilt from Mongo by index.js on startup
+# (services/cacheRefresh.js, async after listen) — no JSON seeding step.
 echo "[entrypoint] Starting server..."
 exec node index.js

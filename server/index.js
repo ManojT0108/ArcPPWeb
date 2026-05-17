@@ -32,6 +32,16 @@ app.use('/api', plotRoutes);
 
 const server = app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
+  // Rebuild the Redis protein caches from Mongo so they never silently go
+  // stale. Non-blocking: existing keys (and the Mongo fallback) serve until
+  // a rebuild lands. Runs once at boot, then on an interval so a species
+  // ingested into a live server gets cache-accelerated with no restart.
+  const { refreshProteinCache } = require('./services/cacheRefresh');
+  const REFRESH_MIN = Math.max(1, parseInt(process.env.CACHE_REFRESH_INTERVAL_MIN || '30', 10));
+  setImmediate(() => { refreshProteinCache(); });
+  const timer = setInterval(() => { refreshProteinCache(); }, REFRESH_MIN * 60 * 1000);
+  timer.unref();
+  console.log(`[cache] periodic refresh every ${REFRESH_MIN} min`);
 });
 
 server.timeout = 120000;

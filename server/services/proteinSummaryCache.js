@@ -1,17 +1,16 @@
 const { redisClient } = require('./psmRedisService');
 
-// Map species_id → short slug used in Redis key prefix
-const SPECIES_SLUGS = {
-  'haloferax volcanii':                         'hvo',
-  'methanothermococcus thermolithotrophicus':   'mettl',
-  'thermoplasma acidophilum':                   'tap',
-  'sulfolobus acidocaldarius':                  'sal',
-  'archaeoglobus fulgidus':                     'afg',
-};
-
+// Deterministic species_id → Redis-key slug. No hardcoded species list: any
+// species in the DB gets a stable slug automatically. Slug is internal to
+// Redis keys only (clients always send the full species name); cacheRefresh
+// writes and all reads use this same function, and keys are rebuilt every
+// boot, so the mapping never needs maintaining when a species is added.
 function speciesSlug(speciesId) {
-  const key = String(speciesId || '').toLowerCase().trim();
-  return SPECIES_SLUGS[key] || key.replace(/\s+/g, '_').slice(0, 16);
+  return String(speciesId || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
 }
 
 function redisKey(speciesId, displayId) {

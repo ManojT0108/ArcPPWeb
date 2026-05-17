@@ -1,23 +1,24 @@
-#!/usr/bin/env node
-/**
- * Generate redis-seed-pages.json for all species.
- * Bundles coverage + details + psm-count + sequence+modifications into one
- * `protein:page:<displayId>` entry per protein so the plot page loads from
- * a single Redis GET instead of five Mongo round-trips.
- *
- * Output: server/data/redis-seed-pages.json
- */
-require('dotenv').config();
-const fs = require('fs');
-const path = require('path');
+// ============================================================================
+// Rebuilds the Redis protein caches directly from MongoDB — no JSON seed files.
+//
+// Writes two key families the app reads:
+//   protein:summary:<slug>:<displayId>   (homepage species tables)
+//   protein:page:<displayId>             (plot-page bundle)
+//
+// One Mongo pass per species computes BOTH bundles. Called async from index.js
+// after the server is listening, so a boot never blocks on it and the
+// (persistent, no-TTL) keys keep serving until the refresh lands.
+// ============================================================================
+
 const mongoose = require('mongoose');
 const Protein = require('../model/proteins');
 const Peptide = require('../model/peptides');
+const { redisClient } = require('./psmRedisService');
+const { speciesSlug } = require('./proteinSummaryCache');
 const { mergeIntervals } = require('../utils/mergeIntervals');
 const { MOD_COLORS } = require('../utils/constants');
 
-const MOD_KEYS = Object.keys(MOD_COLORS);
-const MOD_LOOKUP = MOD_KEYS.reduce((acc, k) => {
+const MOD_LOOKUP = Object.keys(MOD_COLORS).reduce((acc, k) => {
   acc[k.toLowerCase()] = k;
   return acc;
 }, {});
@@ -26,15 +27,16 @@ function canonicalModType(raw) {
   return MOD_LOOKUP[String(raw || '').trim().toLowerCase()] || null;
 }
 
-async function connect() {
-  const uri = process.env.MONGO_URI;
-  if (!uri) { console.error('MONGO_URI not set'); process.exit(1); }
-  await mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true });
-  console.log('Connected to MongoDB');
-}
-
 function displayId(doc) {
   return doc.hvo_id || doc.protein_id;
+}
+
+async function waitFor(label, predicate, { tries = 60, intervalMs = 1000 } = {}) {
+  for (let i = 0; i < tries; i++) {
+    if (predicate()) return true;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  throw new Error(`cacheRefresh: timed out waiting for ${label}`);
 }
 
 function buildModifications(peptides, seqLen) {
@@ -90,20 +92,19 @@ function buildModifications(peptides, seqLen) {
   return modifications;
 }
 
-async function processSpecies(speciesId) {
-  console.log(`\nProcessing ${speciesId}`);
+async function refreshSpecies(speciesId) {
+  const slug = speciesSlug(speciesId);
   const t0 = Date.now();
 
   const proteins = await Protein.find(
     { species_id: speciesId },
     {
-      _id: 1, protein_id: 1, hvo_id: 1, description: 1, qValue: 1,
-      uniProtein_id: 1, hydrophobicity: 1, pI: 1, molecularWeight: 1,
-      species_id: 1, sequence: 1,
+      _id: 1, protein_id: 1, hvo_id: 1, description: 1, dataset_ids: 1,
+      sequence: 1, qValue: 1, uniProtein_id: 1, hydrophobicity: 1, pI: 1,
+      molecularWeight: 1, species_id: 1,
     },
   ).lean();
-  console.log(`  ${proteins.length} proteins`);
-  if (proteins.length === 0) return {};
+  if (proteins.length === 0) return 0;
 
   const objIdToDoc = new Map();
   const proteinObjIds = [];
@@ -112,12 +113,10 @@ async function processSpecies(speciesId) {
     proteinObjIds.push(doc._id);
   }
 
-  console.log('  Fetching peptides…');
   const peptides = await Peptide.find(
     { protein_id: { $in: proteinObjIds } },
     { protein_id: 1, sequence: 1, startIndex: 1, endIndex: 1, modification: 1, qValue: 1, _id: 0 },
   ).lean();
-  console.log(`  ${peptides.length} peptides`);
 
   const byProtein = new Map();
   for (const p of peptides) {
@@ -126,7 +125,7 @@ async function processSpecies(speciesId) {
     byProtein.get(key).push(p);
   }
 
-  const output = {};
+  const pipeline = redisClient.multi();
   for (const doc of proteins) {
     const pid = displayId(doc);
     const seq = doc.sequence || '';
@@ -135,11 +134,19 @@ async function processSpecies(speciesId) {
 
     const uniqueSeqs = new Set();
     const intervals = [];
+    const mods = new Set();
     for (const p of peps) {
       if (p.sequence) uniqueSeqs.add(p.sequence);
       if (p.qValue != null && p.qValue <= 0.005
           && typeof p.startIndex === 'number' && typeof p.endIndex === 'number') {
         intervals.push([p.startIndex, p.endIndex]);
+      }
+      const mod = p.modification?.trim();
+      if (mod && mod !== 'Unmodified' && mod !== 'N/A') {
+        mod.split(';').forEach((part) => {
+          const t = part.trim();
+          if (t) mods.add(t);
+        });
       }
     }
 
@@ -148,10 +155,21 @@ async function processSpecies(speciesId) {
       coveredLength = Math.min(mergeIntervals(intervals.map((i) => i.slice())), seqLen);
     }
     const coveragePercent = seqLen > 0 ? (coveredLength / seqLen) * 100 : 0;
+    const psmCount = uniqueSeqs.size;
 
-    const modifications = seqLen > 0 ? buildModifications(peps, seqLen) : [];
+    const summary = {
+      hvoId: pid,
+      uniProtId: (doc.protein_id && doc.protein_id.trim() && doc.protein_id.trim() !== '-')
+        ? doc.protein_id.trim() : pid,
+      species_id: speciesId,
+      description: doc.description || null,
+      psmCount,
+      coveragePercent: Math.round(coveragePercent * 10) / 10,
+      datasets: Array.isArray(doc.dataset_ids) ? doc.dataset_ids : [],
+      modifications: Array.from(mods),
+    };
 
-    output[pid] = {
+    const page = {
       coverage: {
         protein_id: pid,
         total_length: seqLen,
@@ -169,42 +187,54 @@ async function processSpecies(speciesId) {
         molecular_weight: doc.molecularWeight ?? null,
         species_id: doc.species_id || null,
       },
-      psmCount: uniqueSeqs.size,
+      psmCount,
       sequence: {
         protein_id: pid,
         sequence: seq,
         length: seqLen,
-        modifications,
+        modifications: seqLen > 0 ? buildModifications(peps, seqLen) : [],
       },
     };
+
+    pipeline.set(`protein:summary:${slug}:${pid}`, JSON.stringify(summary));
+    pipeline.set(`protein:page:${pid}`, JSON.stringify(page));
   }
+  await pipeline.exec();
 
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
-  console.log(`  Done: ${Object.keys(output).length} entries in ${elapsed}s`);
-  return output;
+  console.log(`[cache] ${speciesId}: ${proteins.length} proteins refreshed in ${elapsed}s`);
+  return proteins.length;
 }
 
-async function main() {
-  await connect();
-  const overall = {};
+let running = false;
 
-  const speciesList = await Protein.distinct('species_id', {
-    species_id: { $exists: true, $ne: null, $ne: '' },
-  });
-  console.log(`Species: ${speciesList.join(', ')}`);
-
-  for (const speciesId of speciesList) {
-    const entries = await processSpecies(speciesId);
-    Object.assign(overall, entries);
+async function refreshProteinCache() {
+  if (running) {
+    console.log('[cache] refresh already in progress — skipping');
+    return;
   }
+  running = true;
+  try {
+    await waitFor('mongo', () => mongoose.connection.readyState === 1);
+    await waitFor('redis', () => redisClient.isOpen);
 
-  const outFile = path.join(__dirname, '..', 'data', 'redis-seed-pages.json');
-  fs.writeFileSync(outFile, JSON.stringify(overall));
-  const bytes = fs.statSync(outFile).size;
-  console.log(`\nWrote ${Object.keys(overall).length} entries (${(bytes / 1024 / 1024).toFixed(2)} MB) to ${outFile}`);
+    const t0 = Date.now();
+    const speciesList = await Protein.distinct('species_id', {
+      species_id: { $exists: true, $ne: null, $ne: '' },
+    });
+    console.log(`[cache] refreshing ${speciesList.length} species: ${speciesList.join(', ')}`);
 
-  await mongoose.connection.close();
-  process.exit(0);
+    let total = 0;
+    for (const speciesId of speciesList) {
+      total += await refreshSpecies(speciesId);
+    }
+    const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+    console.log(`[cache] done — ${total} proteins across ${speciesList.length} species in ${elapsed}s`);
+  } catch (err) {
+    console.error('[cache] refresh failed:', err.message);
+  } finally {
+    running = false;
+  }
 }
 
-main().catch((err) => { console.error(err); process.exit(1); });
+module.exports = { refreshProteinCache };
