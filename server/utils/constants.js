@@ -9,4 +9,9 @@ const MOD_COLORS = {
 const HVO_RE = /^HVO_\d{4}$/i;
 const UNIPROT_RE = /^(?:[A-Z][0-9][A-Z0-9]{3}[0-9]|[A-Z0-9]{10})(?:-\d+)?$/i;
 
-module.exports = { MOD_COLORS, HVO_RE, UNIPROT_RE };
+// PSM/peptide q-value cutoff for "confidently identified". Used by coverage,
+// the coverage-stats endpoint, the protein page, and the cache builder — keep
+// it in one place so they can't drift apart.
+const Q_VALUE_THRESHOLD = 0.005;
+
+module.exports = { MOD_COLORS, HVO_RE, UNIPROT_RE, Q_VALUE_THRESHOLD };

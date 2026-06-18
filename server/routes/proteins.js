@@ -6,7 +6,7 @@ const { getProteinPage } = require('../services/psmRedisService');
 const { getPsmsByDataset, getPeptidesByProtein } = require('../services/psmMongoService');
 const { getProteinCoverage } = require('../coverage');
 const { getPlotDataForProtein } = require('../plotGenerator');
-const { MOD_COLORS, HVO_RE, UNIPROT_RE } = require('../utils/constants');
+const { MOD_COLORS, HVO_RE, UNIPROT_RE, Q_VALUE_THRESHOLD } = require('../utils/constants');
 
 const canonicalModType = (rawType) => {
   const normalized = String(rawType || '').trim().toLowerCase();
@@ -146,7 +146,7 @@ router.get('/proteins/:protein_id/sequence', async (req, res) => {
     const peptideDocs = await Peptide.find(
       {
         protein_id: proteinDoc._id,
-        $or: [{ q_value: { $lte: 0.005 } }, { q_value: null }, { q_value: { $exists: false } }],
+        $or: [{ q_value: { $lte: Q_VALUE_THRESHOLD } }, { q_value: null }, { q_value: { $exists: false } }],
       },
       { sequence: 1, start_index: 1, end_index: 1, modification: 1, _id: 0 }
     ).lean();
@@ -332,7 +332,7 @@ router.get('/proteins/:protein_id/features', async (req, res) => {
       const peps = await Peptide.find(
         {
           protein_id: doc._id,
-          $or: [{ q_value: { $lte: 0.005 } }, { q_value: null }, { q_value: { $exists: false } }],
+          $or: [{ q_value: { $lte: Q_VALUE_THRESHOLD } }, { q_value: null }, { q_value: { $exists: false } }],
         },
         { sequence: 1, start_index: 1, end_index: 1, modification: 1, _id: 0 },
       ).lean();

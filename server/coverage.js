@@ -1,24 +1,26 @@
 const Peptide = require('./model/peptides');
 const Protein = require('./model/proteins');
+const { mergeIntervals } = require('./utils/mergeIntervals');
+const { Q_VALUE_THRESHOLD } = require('./utils/constants');
 
 async function getCoveredLength(proteinObjectId) {
   const peptides = await Peptide.find({
     protein_id: proteinObjectId,
-    q_value: { $lte: 0.005 }
+    q_value: { $lte: Q_VALUE_THRESHOLD }
   }, {
     start_index: 1,
     end_index: 1,
     _id: 0
   }).lean();
 
-  const covered = new Set();
+  const intervals = [];
   for (const pep of peptides) {
     const { start_index: start, end_index: end } = pep;
     if (typeof start === 'number' && typeof end === 'number' && end >= start) {
-      for (let i = start; i <= end; i++) covered.add(i);
+      intervals.push([start, end]);
     }
   }
-  return covered.size;
+  return mergeIntervals(intervals);
 }
 
 // Accept hvo_id or protein_id
