@@ -3,7 +3,7 @@ const Protein = require('../model/proteins');
 const Peptide = require('../model/peptides');
 const { speciesToProteinIdFilter } = require('../utils/speciesFilter');
 const { mergeIntervals } = require('../utils/mergeIntervals');
-const { MOD_COLORS } = require('../utils/constants');
+const { MOD_COLORS, Q_VALUE_THRESHOLD } = require('../utils/constants');
 
 // In-memory coverage-stats cache (5 min)
 let coverageCache = null;
@@ -49,7 +49,6 @@ router.get('/species/coverage-stats', async (req, res) => {
     console.log('🔄 Calculating coverage stats (this may take a moment)...');
     const speciesConfigs = await buildSpeciesConfigs();
 
-    const q_valueThreshold = 0.005;
     const results = [];
 
     for (const config of speciesConfigs) {
@@ -77,7 +76,7 @@ router.get('/species/coverage-stats', async (req, res) => {
         const peptides = await Peptide.find(
           {
             protein_id: { $in: proteinObjectIds },
-            q_value: { $lte: q_valueThreshold },
+            q_value: { $lte: Q_VALUE_THRESHOLD },
           },
           { protein_id: 1, start_index: 1, end_index: 1, _id: 0 }
         ).lean();

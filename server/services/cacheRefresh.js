@@ -16,7 +16,7 @@ const Peptide = require('../model/peptides');
 const { redisClient } = require('./psmRedisService');
 const { speciesSlug } = require('./proteinSummaryCache');
 const { mergeIntervals } = require('../utils/mergeIntervals');
-const { MOD_COLORS } = require('../utils/constants');
+const { MOD_COLORS, Q_VALUE_THRESHOLD } = require('../utils/constants');
 
 const MOD_LOOKUP = Object.keys(MOD_COLORS).reduce((acc, k) => {
   acc[k.toLowerCase()] = k;
@@ -48,7 +48,7 @@ function buildModifications(peptides, seqLen) {
     const start = p.start_index;
     const stop = p.end_index;
     if (typeof start !== 'number' || typeof stop !== 'number') continue;
-    if (p.q_value != null && p.q_value > 0.005) continue;
+    if (p.q_value != null && p.q_value > Q_VALUE_THRESHOLD) continue;
 
     let hasColoredMod = false;
     if (p.modification) {
@@ -137,7 +137,7 @@ async function refreshSpecies(speciesId) {
     const mods = new Set();
     for (const p of peps) {
       if (p.sequence) uniqueSeqs.add(p.sequence);
-      if (p.q_value != null && p.q_value <= 0.005
+      if (p.q_value != null && p.q_value <= Q_VALUE_THRESHOLD
           && typeof p.start_index === 'number' && typeof p.end_index === 'number') {
         intervals.push([p.start_index, p.end_index]);
       }
