@@ -135,7 +135,7 @@ router.get('/species/:speciesId/proteins-summary', async (req, res) => {
     const total = await Protein.countDocuments(filter).exec();
     const proteinDocs = await Protein.find(
       filter,
-      { _id: 1, protein_id: 1, hvo_id: 1, uniProtein_id: 1, description: 1, dataset_ids: 1, species_id: 1 }
+      { _id: 1, protein_id: 1, hvo_id: 1, uniprot_id: 1, description: 1, dataset_ids: 1, species_id: 1 }
     )
       .sort({ protein_id: 1 })
       .skip(offset)
@@ -148,14 +148,14 @@ router.get('/species/:speciesId/proteins-summary', async (req, res) => {
         concurrency(async () => {
           const pid = displayId(doc);
 
-          let psmCount = 0;
+          let psm_count = 0;
           try {
             const agg = await Peptide.aggregate([
               { $match: { protein_id: doc._id } },
               { $group: { _id: '$sequence' } },
               { $count: 'unique_sequences' },
             ]).exec();
-            psmCount = agg?.[0]?.unique_sequences ?? 0;
+            psm_count = agg?.[0]?.unique_sequences ?? 0;
           } catch {}
 
           let coveragePercent = 0;
@@ -185,7 +185,7 @@ router.get('/species/:speciesId/proteins-summary', async (req, res) => {
             hvoId: pid,
             uniProtId,
             species_id: doc.species_id || '',
-            psmCount,
+            psm_count,
             coveragePercent,
             datasets: Array.isArray(doc.dataset_ids) ? doc.dataset_ids.filter(Boolean) : [],
             description: doc.description || '',

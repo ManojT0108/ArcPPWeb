@@ -19,7 +19,7 @@ export default function ProteinPlotPage() {
 
   const [coverage, setCoverage] = useState(null);
   const [protein, setProtein] = useState(null);
-  const [psmCount, setPsmCount] = useState(null);
+  const [psm_count, setPsmCount] = useState(null);
   const [totalPsms, setTotalPsms] = useState(null);
   const [sequenceData, setSequenceData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -40,10 +40,10 @@ export default function ProteinPlotPage() {
       if (cancelled || !bundle) return;
       setCoverage(bundle.coverage);
       setProtein(bundle.details);
-      setPsmCount(typeof bundle.psmCount === 'number' ? bundle.psmCount : 0);
+      setPsmCount(typeof bundle.psm_count === 'number' ? bundle.psm_count : 0);
       setSequenceData(bundle.sequence);
       if (Array.isArray(bundle.psmsByDataset)) {
-        const total = bundle.psmsByDataset.reduce((sum, item) => sum + (item.psmCount || 0), 0);
+        const total = bundle.psmsByDataset.reduce((sum, item) => sum + (item.psm_count || 0), 0);
         setTotalPsms(total);
       }
     }
@@ -72,10 +72,10 @@ export default function ProteinPlotPage() {
       if (cancelled) return;
       setCoverage(covRes.data);
       setProtein(protRes.data);
-      setPsmCount(typeof psmRes.data?.psmCount === 'number' ? psmRes.data.psmCount : 0);
+      setPsmCount(typeof psmRes.data?.psm_count === 'number' ? psmRes.data.psm_count : 0);
       setSequenceData(seqRes.data);
       if (psmDatasetRes.data?.success && psmDatasetRes.data.data) {
-        const total = psmDatasetRes.data.data.reduce((sum, item) => sum + item.psmCount, 0);
+        const total = psmDatasetRes.data.data.reduce((sum, item) => sum + item.psm_count, 0);
         setTotalPsms(total);
       }
     }
@@ -124,11 +124,11 @@ export default function ProteinPlotPage() {
   }
 
   const { total_length = 0, covered_length = 0, coverage_percent = 0 } = coverage;
-  const { uniProtein_id, qValue, description, hydrophobicity, pI, molecular_weight } = protein;
+  const { uniprot_id, q_value, description, hydrophobicity, pI, molecular_weight } = protein;
 
   const statItems = [
-    { label: 'q-Value',           value: qValue != null ? Number(qValue).toFixed(5) : '—' },
-    { label: 'Peptides',          value: psmCount != null ? psmCount : '—' },
+    { label: 'q-Value',           value: q_value != null ? Number(q_value).toFixed(5) : '—' },
+    { label: 'Peptides',          value: psm_count != null ? psm_count : '—' },
     { label: 'PSMs',              value: totalPsms != null ? totalPsms.toLocaleString() : '—' },
     { label: 'pI',                value: pI != null ? pI.toFixed(2) : '—' },
     { label: 'Hydrophobicity',    value: hydrophobicity != null ? hydrophobicity.toFixed(3) : '—' },
@@ -195,9 +195,9 @@ export default function ProteinPlotPage() {
                 {hvoId}
               </h1>
 
-              {uniProtein_id && (
+              {uniprot_id && (
                 <a
-                  href={`https://www.uniprot.org/uniprotkb/${uniProtein_id}/entry`}
+                  href={`https://www.uniprot.org/uniprotkb/${uniprot_id}/entry`}
                   target="_blank" rel="noopener noreferrer"
                   style={{
                     display: 'inline-block',
@@ -208,12 +208,12 @@ export default function ProteinPlotPage() {
                     marginBottom: 12,
                   }}
                 >
-                  UniProt: {uniProtein_id} ↗
+                  UniProt: {uniprot_id} ↗
                 </a>
               )}
 
               <p style={{
-                margin: uniProtein_id ? '0' : '12px 0 0',
+                margin: uniprot_id ? '0' : '12px 0 0',
                 color: mutedColor,
                 fontSize: 14,
                 lineHeight: 1.65,

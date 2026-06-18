@@ -49,7 +49,7 @@ router.get('/species/coverage-stats', async (req, res) => {
     console.log('🔄 Calculating coverage stats (this may take a moment)...');
     const speciesConfigs = await buildSpeciesConfigs();
 
-    const qValueThreshold = 0.005;
+    const q_valueThreshold = 0.005;
     const results = [];
 
     for (const config of speciesConfigs) {
@@ -77,9 +77,9 @@ router.get('/species/coverage-stats', async (req, res) => {
         const peptides = await Peptide.find(
           {
             protein_id: { $in: proteinObjectIds },
-            qValue: { $lte: qValueThreshold },
+            q_value: { $lte: q_valueThreshold },
           },
-          { protein_id: 1, startIndex: 1, endIndex: 1, _id: 0 }
+          { protein_id: 1, start_index: 1, end_index: 1, _id: 0 }
         ).lean();
 
         const intervalsByProtein = {};
@@ -88,8 +88,8 @@ router.get('/species/coverage-stats', async (req, res) => {
           if (!intervalsByProtein[pid]) {
             intervalsByProtein[pid] = [];
           }
-          let start = pep.startIndex;
-          let end = pep.endIndex;
+          let start = pep.start_index;
+          let end = pep.end_index;
           if (typeof start !== 'number' || typeof end !== 'number') continue;
           if (end < start) [start, end] = [end, start];
           intervalsByProtein[pid].push([start, end]);

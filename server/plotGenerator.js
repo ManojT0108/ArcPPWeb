@@ -21,16 +21,16 @@ async function getPlotDataForProtein(targetId) {
 
   const peptides = await Peptide.find(
     { protein_id: proteinDoc._id },
-    { sequence: 1, startIndex: 1, endIndex: 1, modification: 1, _id: 0 }
+    { sequence: 1, start_index: 1, end_index: 1, modification: 1, _id: 0 }
   ).lean();
 
   const response = {
-    sequenceLength: fasta.length,
+    sequence_length: fasta.length,
     sequenceLetters: fasta.split(""),
     trypsin: trypsinPositions,
     peptides: peptides.map(p => ({
-      start: p.startIndex,
-      stop: p.endIndex,
+      start: p.start_index,
+      stop: p.end_index,
       sequence: p.sequence,
       modifications: p.modification
     }))

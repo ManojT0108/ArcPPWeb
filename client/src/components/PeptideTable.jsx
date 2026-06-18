@@ -13,7 +13,7 @@ export default function PeptideTable({ proteinId }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [sort, setSort] = useState({ key: 'psmCount', dir: 'desc' });
+  const [sort, setSort] = useState({ key: 'psm_count', dir: 'desc' });
 
   useEffect(() => {
     if (!proteinId) return;
@@ -57,7 +57,7 @@ export default function PeptideTable({ proteinId }) {
     const val = (r) => {
       if (sort.key === 'sequence') return r.sequence || '';
       if (sort.key === 'datasets') return (r.datasets || []).length;
-      return r.psmCount ?? -1;
+      return r.psm_count ?? -1;
     };
     return [...data].sort((a, b) => {
       const A = val(a), B = val(b);
@@ -72,7 +72,7 @@ export default function PeptideTable({ proteinId }) {
     const csvRows = [headers.join(',')];
     rows.forEach((r) => {
       const datasets = Array.isArray(r.datasets) ? r.datasets.join('; ') : '';
-      csvRows.push([r.sequence || '', r.psmCount ?? '', datasets].join(','));
+      csvRows.push([r.sequence || '', r.psm_count ?? '', datasets].join(','));
     });
     const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -137,7 +137,7 @@ export default function PeptideTable({ proteinId }) {
             zIndex: 1,
           }}>
             <div style={{ cursor: 'pointer' }} onClick={() => onSort('sequence')}>Peptide Sequence {sortIcon('sequence')}</div>
-            <div style={{ cursor: 'pointer' }} onClick={() => onSort('psmCount')}>PSMs {sortIcon('psmCount')}</div>
+            <div style={{ cursor: 'pointer' }} onClick={() => onSort('psm_count')}>PSMs {sortIcon('psm_count')}</div>
             <div style={{ cursor: 'pointer' }} onClick={() => onSort('datasets')}>Datasets {sortIcon('datasets')}</div>
           </div>
 
@@ -167,7 +167,7 @@ export default function PeptideTable({ proteinId }) {
                   {r.sequence}
                 </div>
                 <div style={{ fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>
-                  {r.psmCount?.toLocaleString() ?? '—'}
+                  {r.psm_count?.toLocaleString() ?? '—'}
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
                   {datasets.length === 0 ? (

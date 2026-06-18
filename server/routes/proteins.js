@@ -98,7 +98,7 @@ router.get('/proteins/resolve', async (req, res) => {
     if (HVO_RE.test(raw)) {
       const byHvo = await Protein.findOne(
         { hvo_id: { $regex: `^${raw}$`, $options: 'i' } },
-        { _id: 0, protein_id: 1, hvo_id: 1, uniProtein_id: 1, description: 1 }
+        { _id: 0, protein_id: 1, hvo_id: 1, uniprot_id: 1, description: 1 }
       ).lean();
       if (byHvo) {
         return res.json({
@@ -146,12 +146,12 @@ router.get('/proteins/:protein_id/sequence', async (req, res) => {
     const peptideDocs = await Peptide.find(
       {
         protein_id: proteinDoc._id,
-        $or: [{ qValue: { $lte: 0.005 } }, { qValue: null }, { qValue: { $exists: false } }],
+        $or: [{ q_value: { $lte: 0.005 } }, { q_value: null }, { q_value: { $exists: false } }],
       },
-      { sequence: 1, startIndex: 1, endIndex: 1, modification: 1, _id: 0 }
+      { sequence: 1, start_index: 1, end_index: 1, modification: 1, _id: 0 }
     ).lean();
     const rows = peptideDocs.map(p => ({
-      seq: p.sequence, start: p.startIndex, stop: p.endIndex, mods: p.modification
+      seq: p.sequence, start: p.start_index, stop: p.end_index, mods: p.modification
     }));
 
     const modifications = [];
@@ -234,18 +234,18 @@ router.get('/proteins/:protein_id/details', async (req, res) => {
   const displayId = req.params.protein_id;
   try {
     const doc = await findProteinByDisplayId(displayId, {
-      _id: 0, protein_id: 1, hvo_id: 1, description: 1, qValue: 1,
-      uniProtein_id: 1, hydrophobicity: 1, pI: 1, molecularWeight: 1, species_id: 1
+      _id: 0, protein_id: 1, hvo_id: 1, description: 1, q_value: 1,
+      uniprot_id: 1, hydrophobicity: 1, pI: 1, molecular_weight: 1, species_id: 1
     });
 
     if (!doc) return res.status(404).json({ error: 'Protein not found' });
 
     res.json({
       ...doc,
-      // protein_id is always the UniProt accession in the new schema
-      uniProtein_id: doc.uniProtein_id || doc.protein_id || null,
-      molecular_weight: doc.molecularWeight,
-      molecularWeight: undefined,
+      // protein_id is always the UniProt accession in the new schema;
+      // molecular_weight comes straight through the spread now that the DB
+      // field is snake_case.
+      uniprot_id: doc.uniprot_id || doc.protein_id || null,
     });
   } catch (err) {
     console.error('Protein details error:', err);
@@ -266,7 +266,7 @@ router.get('/proteins/:protein_id/psm-count', async (req, res) => {
       { $count: 'unique_sequences' },
     ]).exec();
     const count = result?.[0]?.unique_sequences ?? 0;
-    res.json({ protein_id: displayId, psmCount: count });
+    res.json({ protein_id: displayId, psm_count: count });
   } catch (err) {
     console.error('PSM count error:', err);
     res.status(500).json({ error: 'Failed to compute PSM count' });
@@ -299,7 +299,7 @@ router.get('/proteins/:protein_id/page', async (req, res) => {
       source: 'redis',
       coverage: page.coverage,
       details: page.details,
-      psmCount: page.psmCount,
+      psm_count: page.psm_count,
       sequence: page.sequence,
       psmsByDataset,
     });
@@ -332,9 +332,9 @@ router.get('/proteins/:protein_id/features', async (req, res) => {
       const peps = await Peptide.find(
         {
           protein_id: doc._id,
-          $or: [{ qValue: { $lte: 0.005 } }, { qValue: null }, { qValue: { $exists: false } }],
+          $or: [{ q_value: { $lte: 0.005 } }, { q_value: null }, { q_value: { $exists: false } }],
         },
-        { sequence: 1, startIndex: 1, endIndex: 1, modification: 1, _id: 0 },
+        { sequence: 1, start_index: 1, end_index: 1, modification: 1, _id: 0 },
       ).lean();
       modifications = [];
       const seen = new Set();
@@ -348,14 +348,14 @@ router.get('/proteins/:protein_id/features', async (req, res) => {
             const type = canonicalModType(m[1]);
             if (!type) continue;
             const rel = parseInt(m[2], 10);
-            const abs = p.startIndex + rel - 1;
+            const abs = p.start_index + rel - 1;
             if (abs < 1 || abs > sequence.length) continue;
             const key = `${abs}|${type}`;
             if (seen.has(key)) continue;
             seen.add(key);
             modifications.push({
               position: abs, type, color: MOD_COLORS[type],
-              peptideStart: p.startIndex, peptideEnd: p.endIndex, peptideSequence: p.sequence,
+              peptideStart: p.start_index, peptideEnd: p.end_index, peptideSequence: p.sequence,
             });
             colored = true;
           }
@@ -363,7 +363,7 @@ router.get('/proteins/:protein_id/features', async (req, res) => {
         if (!colored) {
           modifications.push({
             position: null, type: 'Covered', color: null,
-            peptideStart: p.startIndex, peptideEnd: p.endIndex, peptideSequence: p.sequence,
+            peptideStart: p.start_index, peptideEnd: p.end_index, peptideSequence: p.sequence,
           });
         }
       }
@@ -444,7 +444,7 @@ router.get('/proteins/:protein_id/features', async (req, res) => {
   }
 });
 
-// PSM by Dataset — direct indexed match on PSMs.protein_id, grouped by dataSet_id.
+// PSM by Dataset — direct indexed match on PSMs.protein_id, grouped by dataset_id.
 // Powered by the rebuilt MongoDB (TestArcPP2). Replaces the 4-stage join chain
 // and the Redis psms:* cache.
 router.get('/proteins/:proteinId/psms-by-dataset', async (req, res) => {
@@ -506,7 +506,7 @@ router.get('/peptides/selected-fields', async (req, res) => {
 
     const results = await Peptide.aggregate([
       { $match: { protein_id: objectId } },
-      { $project: { _id: 0, protein_id: 1, modification: 1, sequence: 1, startIndex: 1, endIndex: 1 } },
+      { $project: { _id: 0, protein_id: 1, modification: 1, sequence: 1, start_index: 1, end_index: 1 } },
     ]);
     res.json(results);
   } catch (err) {

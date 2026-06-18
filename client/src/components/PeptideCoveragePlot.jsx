@@ -63,10 +63,10 @@ const PeptideCoveragePlot = forwardRef(({
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
   const plotRef = useRef(null);
-  const sequenceLength = useRef(null);
+  const sequence_length = useRef(null);
 
   const handleResetZoom = useCallback(() => {
-    if (!plotRef.current?.el || !window.Plotly || !sequenceLength.current) return;
+    if (!plotRef.current?.el || !window.Plotly || !sequence_length.current) return;
     window.Plotly.relayout(plotRef.current.el, {
       'xaxis.autorange': true,
     });
@@ -83,7 +83,7 @@ const PeptideCoveragePlot = forwardRef(({
           payload.layout?.xaxis?.range?.[1] ||
           payload.layout?.xaxis?.tickvals?.length ||
           1000;
-        sequenceLength.current = seqLen;
+        sequence_length.current = seqLen;
 
         if (payload.layout?.xaxis) {
           payload.layout.xaxis.range = [1, seqLen];
@@ -120,9 +120,9 @@ const PeptideCoveragePlot = forwardRef(({
   }, [handleResetZoom]);
 
   useEffect(() => {
-    if (zoomToPosition && plotRef.current && spec && sequenceLength.current) {
+    if (zoomToPosition && plotRef.current && spec && sequence_length.current) {
       const windowSize = 40;
-      const maxPos = sequenceLength.current;
+      const maxPos = sequence_length.current;
       const start = Math.max(1, zoomToPosition - windowSize / 2);
       const end = Math.min(maxPos, zoomToPosition + windowSize / 2);
       setTimeout(() => {
@@ -135,9 +135,9 @@ const PeptideCoveragePlot = forwardRef(({
 
   useImperativeHandle(ref, () => ({
     zoomToRange: (start, end) => {
-      if (plotRef.current?.el && window.Plotly && sequenceLength.current) {
+      if (plotRef.current?.el && window.Plotly && sequence_length.current) {
         window.Plotly.relayout(plotRef.current.el, {
-          'xaxis.range': [Math.max(1, start), Math.min(sequenceLength.current, end)],
+          'xaxis.range': [Math.max(1, start), Math.min(sequence_length.current, end)],
         });
       }
     },
@@ -171,7 +171,7 @@ const PeptideCoveragePlot = forwardRef(({
       xaxis: {
         ...glass.xaxis,
         title: { text: specXaxis.title || 'Protein Sequence Position', font: glass.xaxis.titlefont, standoff: 12 },
-        range: specXaxis.range || [1, sequenceLength.current || 100],
+        range: specXaxis.range || [1, sequence_length.current || 100],
         type: 'linear',
       },
       yaxis: {
@@ -248,8 +248,8 @@ const PeptideCoveragePlot = forwardRef(({
         style={{ width: '100%', height: 400, borderRadius: 14 }}
         useResizeHandler
         onRelayout={(ev) => {
-          if (!plotRef.current?.el || !window.Plotly || !sequenceLength.current) return;
-          const maxPos = sequenceLength.current;
+          if (!plotRef.current?.el || !window.Plotly || !sequence_length.current) return;
+          const maxPos = sequence_length.current;
           const x0 = ev['xaxis.range[0]'];
           const x1 = ev['xaxis.range[1]'];
           if (typeof x0 !== 'number' || typeof x1 !== 'number') return;

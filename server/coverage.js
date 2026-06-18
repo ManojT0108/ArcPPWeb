@@ -4,16 +4,16 @@ const Protein = require('./model/proteins');
 async function getCoveredLength(proteinObjectId) {
   const peptides = await Peptide.find({
     protein_id: proteinObjectId,
-    qValue: { $lte: 0.005 }
+    q_value: { $lte: 0.005 }
   }, {
-    startIndex: 1,
-    endIndex: 1,
+    start_index: 1,
+    end_index: 1,
     _id: 0
   }).lean();
 
   const covered = new Set();
   for (const pep of peptides) {
-    const { startIndex: start, endIndex: end } = pep;
+    const { start_index: start, end_index: end } = pep;
     if (typeof start === 'number' && typeof end === 'number' && end >= start) {
       for (let i = start; i <= end; i++) covered.add(i);
     }

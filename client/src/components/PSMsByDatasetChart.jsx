@@ -86,7 +86,7 @@ function PSMsByDatasetChart({ proteinId, mode = 'dark' }) {
   const chartData = data
     .map((item) => ({
       dataset: item.dataset,
-      PSMs: item.psmCount,
+      PSMs: item.psm_count,
     }))
     .sort((a, b) => b.PSMs - a.PSMs);
 

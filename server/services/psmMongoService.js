@@ -3,13 +3,13 @@
 // In the rebuilt PeptideSpectrumMatches collection, each PSM doc carries:
 //   protein_id   ObjectId  → Proteins._id
 //   peptide_id   ObjectId  → Peptides._id
-//   dataSet_id   string    (PXD accession, denormalized from the source CSV)
+//   dataset_id   string    (PXD accession, denormalized from the source CSV)
 //
 // So a per-protein, per-dataset PSM count is a single indexed match + group —
 // no joins through MassSpectrometryFiles or sequence-string keys.
 //
 // Required indexes (created by arcpp-ingestion at ingest time):
-//   PeptideSpectrumMatches.protein_id, .dataSet_id, (protein_id, dataSet_id)
+//   PeptideSpectrumMatches.protein_id, .dataset_id, (protein_id, dataset_id)
 const mongoose = require('mongoose');
 const Protein = require('../model/proteins');
 
@@ -29,9 +29,9 @@ async function getPsmsByDataset(displayId) {
   return psms
     .aggregate([
       { $match: { protein_id: objectId } },
-      { $group: { _id: '$dataSet_id', psmCount: { $sum: 1 } } },
-      { $project: { _id: 0, dataset: '$_id', psmCount: 1 } },
-      { $sort: { psmCount: -1 } },
+      { $group: { _id: '$dataset_id', psm_count: { $sum: 1 } } },
+      { $project: { _id: 0, dataset: '$_id', psm_count: 1 } },
+      { $sort: { psm_count: -1 } },
     ])
     .toArray();
 }
@@ -50,8 +50,8 @@ async function getPeptidesByProtein(displayId) {
       {
         $group: {
           _id: '$peptide_id',
-          psmCount: { $sum: 1 },
-          datasets: { $addToSet: '$dataSet_id' },
+          psm_count: { $sum: 1 },
+          datasets: { $addToSet: '$dataset_id' },
         },
       },
       {
@@ -67,22 +67,22 @@ async function getPeptidesByProtein(displayId) {
         $project: {
           _id: 0,
           sequence: '$pep.sequence',
-          startIndex: '$pep.startIndex',
-          endIndex: '$pep.endIndex',
-          psmCount: 1,
+          start_index: '$pep.start_index',
+          end_index: '$pep.end_index',
+          psm_count: 1,
           datasets: 1,
         },
       },
-      { $sort: { psmCount: -1 } },
+      { $sort: { psm_count: -1 } },
     ])
     .toArray();
 
   // Normalise: drop empty/blank dataset ids and sort them for stable display.
   return rows.map((r) => ({
     sequence: r.sequence,
-    startIndex: r.startIndex,
-    endIndex: r.endIndex,
-    psmCount: r.psmCount,
+    start_index: r.start_index,
+    end_index: r.end_index,
+    psm_count: r.psm_count,
     datasets: (r.datasets || [])
       .filter((d) => typeof d === 'string' && d.trim())
       .sort((a, b) => a.localeCompare(b)),
