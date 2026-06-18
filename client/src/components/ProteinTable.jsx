@@ -81,7 +81,7 @@ export default function ProteinTable({
       const modifications = Array.isArray(r.modifications) ? r.modifications.join('; ') : '';
       const description = (r.description || '').replace(/,/g, ';');
       const uniProt = r.uniProtId || r.hvoId || '';
-      csvRows.push([uniProt, r.hvoId || '', r.psmCount ?? '', Number.isFinite(r.coveragePercent) ? r.coveragePercent.toFixed(1) : '', datasets, modifications, description].join(','));
+      csvRows.push([uniProt, r.hvoId || '', r.psm_count ?? '', Number.isFinite(r.coveragePercent) ? r.coveragePercent.toFixed(1) : '', datasets, modifications, description].join(','));
     });
     const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -180,7 +180,7 @@ export default function ProteinTable({
       }}>
         <div style={{ cursor: 'pointer' }} onClick={() => onSort('uniProtId')}>UniProt ID {sortIcon('uniProtId')}</div>
         <div style={{ cursor: 'pointer' }} onClick={() => onSort('hvoId')}>Protein ID {sortIcon('hvoId')}</div>
-        <div style={{ cursor: 'pointer' }} onClick={() => onSort('psmCount')}>Peptides {sortIcon('psmCount')}</div>
+        <div style={{ cursor: 'pointer' }} onClick={() => onSort('psm_count')}>Peptides {sortIcon('psm_count')}</div>
         <div style={{ cursor: 'pointer' }} onClick={() => onSort('coveragePercent')}>Coverage {sortIcon('coveragePercent')}</div>
         <div>Datasets</div>
         <div>Modifications</div>
@@ -239,7 +239,7 @@ export default function ProteinTable({
                   {r.hvoId}
                 </span>
               </div>
-              <div style={{ fontSize: 14, color: textColor }}>{r.psmCount ?? '\u2014'}</div>
+              <div style={{ fontSize: 14, color: textColor }}>{r.psm_count ?? '\u2014'}</div>
               <div style={{ fontSize: 14, color: textColor }}>
                 {Number.isFinite(r.coveragePercent) ? `${r.coveragePercent.toFixed(1)}%` : '\u2014'}
               </div>

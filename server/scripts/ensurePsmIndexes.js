@@ -9,7 +9,7 @@ require('dotenv').config();
 
   const todo = [
     ['PeptideSpectrumMatches', { peptide_id: 1 }, 'psm_peptide_id'],
-    ['MassSpectrometryFiles', { fileName: 1 }, 'msf_fileName'],
+    ['MassSpectrometryFiles', { file_name: 1 }, 'msf_file_name'],
     ['Peptides', { protein_id: 1 }, 'pep_protein_id'],
   ];
 

@@ -21,10 +21,10 @@ router.get('/plot/peptide-coverage/:protein_id', async (req, res) => {
     const L = seq.length;
     const peptideDocs = await Peptide.find(
       { protein_id: proteinDoc._id },
-      { sequence: 1, startIndex: 1, endIndex: 1, modification: 1, _id: 0 }
+      { sequence: 1, start_index: 1, end_index: 1, modification: 1, _id: 0 }
     ).lean();
     const rows = peptideDocs.map(p => ({
-      seq: p.sequence, start: p.startIndex, stop: p.endIndex, mods: p.modification
+      seq: p.sequence, start: p.start_index, stop: p.end_index, mods: p.modification
     }));
 
     // 2) enzyme sites

@@ -24,14 +24,14 @@ async function processProteinBatch(proteins) {
   for (const doc of proteins) {
     const pid = displayId(doc);
     try {
-      let psmCount = 0;
+      let psm_count = 0;
       try {
         const agg = await Peptide.aggregate([
           { $match: { protein_id: doc._id } },
           { $group: { _id: '$sequence' } },
           { $count: 'unique_sequences' },
         ]).exec();
-        psmCount = agg?.[0]?.unique_sequences ?? 0;
+        psm_count = agg?.[0]?.unique_sequences ?? 0;
       } catch {}
 
       let coveragePercent = 0;
@@ -59,7 +59,7 @@ async function processProteinBatch(proteins) {
           uniProtId: (doc.protein_id && doc.protein_id.trim() && doc.protein_id.trim() !== '-') ? doc.protein_id.trim() : pid,
           species_id: doc.species_id || null,
           description: doc.description || null,
-          psmCount,
+          psm_count,
           coveragePercent: Math.round(coveragePercent * 10) / 10,
           datasets: Array.isArray(doc.dataset_ids) ? doc.dataset_ids : [],
           modifications,
@@ -88,7 +88,7 @@ async function populateCache() {
     console.log(`\n🔬 Processing species: ${speciesId}`);
     const allProteins = await Protein.find(
       { species_id: speciesId },
-      { _id: 1, protein_id: 1, hvo_id: 1, uniProtein_id: 1, description: 1, dataset_ids: 1, species_id: 1 }
+      { _id: 1, protein_id: 1, hvo_id: 1, uniprot_id: 1, description: 1, dataset_ids: 1, species_id: 1 }
     ).lean().exec();
     console.log(`   Found ${allProteins.length} proteins`);
 

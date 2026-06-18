@@ -193,7 +193,7 @@ export default function HomePage() {
     const val = (row) => {
       if (key === 'hvoId') return row.hvoId || '';
       if (key === 'uniProtId') return row.uniProtId || '';
-      if (key === 'psmCount') return row.psmCount ?? -1;
+      if (key === 'psm_count') return row.psm_count ?? -1;
       if (key === 'coveragePercent') return row.coveragePercent ?? -1;
       return '';
     };

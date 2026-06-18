@@ -45,10 +45,10 @@ function buildModifications(peptides, seqLen) {
   const re = /(.+):(\d+)$/;
 
   for (const p of peptides) {
-    const start = p.startIndex;
-    const stop = p.endIndex;
+    const start = p.start_index;
+    const stop = p.end_index;
     if (typeof start !== 'number' || typeof stop !== 'number') continue;
-    if (p.qValue != null && p.qValue > 0.005) continue;
+    if (p.q_value != null && p.q_value > 0.005) continue;
 
     let hasColoredMod = false;
     if (p.modification) {
@@ -100,8 +100,8 @@ async function refreshSpecies(speciesId) {
     { species_id: speciesId },
     {
       _id: 1, protein_id: 1, hvo_id: 1, description: 1, dataset_ids: 1,
-      sequence: 1, qValue: 1, uniProtein_id: 1, hydrophobicity: 1, pI: 1,
-      molecularWeight: 1, species_id: 1,
+      sequence: 1, q_value: 1, uniprot_id: 1, hydrophobicity: 1, pI: 1,
+      molecular_weight: 1, species_id: 1,
     },
   ).lean();
   if (proteins.length === 0) return 0;
@@ -115,7 +115,7 @@ async function refreshSpecies(speciesId) {
 
   const peptides = await Peptide.find(
     { protein_id: { $in: proteinObjIds } },
-    { protein_id: 1, sequence: 1, startIndex: 1, endIndex: 1, modification: 1, qValue: 1, _id: 0 },
+    { protein_id: 1, sequence: 1, start_index: 1, end_index: 1, modification: 1, q_value: 1, _id: 0 },
   ).lean();
 
   const byProtein = new Map();
@@ -137,9 +137,9 @@ async function refreshSpecies(speciesId) {
     const mods = new Set();
     for (const p of peps) {
       if (p.sequence) uniqueSeqs.add(p.sequence);
-      if (p.qValue != null && p.qValue <= 0.005
-          && typeof p.startIndex === 'number' && typeof p.endIndex === 'number') {
-        intervals.push([p.startIndex, p.endIndex]);
+      if (p.q_value != null && p.q_value <= 0.005
+          && typeof p.start_index === 'number' && typeof p.end_index === 'number') {
+        intervals.push([p.start_index, p.end_index]);
       }
       const mod = p.modification?.trim();
       if (mod && mod !== 'Unmodified' && mod !== 'N/A') {
@@ -155,7 +155,7 @@ async function refreshSpecies(speciesId) {
       coveredLength = Math.min(mergeIntervals(intervals.map((i) => i.slice())), seqLen);
     }
     const coveragePercent = seqLen > 0 ? (coveredLength / seqLen) * 100 : 0;
-    const psmCount = uniqueSeqs.size;
+    const psm_count = uniqueSeqs.size;
 
     const summary = {
       hvoId: pid,
@@ -163,7 +163,7 @@ async function refreshSpecies(speciesId) {
         ? doc.protein_id.trim() : pid,
       species_id: speciesId,
       description: doc.description || null,
-      psmCount,
+      psm_count,
       coveragePercent: Math.round(coveragePercent * 10) / 10,
       datasets: Array.isArray(doc.dataset_ids) ? doc.dataset_ids : [],
       modifications: Array.from(mods),
@@ -180,14 +180,14 @@ async function refreshSpecies(speciesId) {
         protein_id: doc.protein_id || null,
         hvo_id: doc.hvo_id || null,
         description: doc.description || null,
-        qValue: doc.qValue ?? null,
-        uniProtein_id: doc.uniProtein_id || doc.protein_id || null,
+        q_value: doc.q_value ?? null,
+        uniprot_id: doc.uniprot_id || doc.protein_id || null,
         hydrophobicity: doc.hydrophobicity ?? null,
         pI: doc.pI ?? null,
-        molecular_weight: doc.molecularWeight ?? null,
+        molecular_weight: doc.molecular_weight ?? null,
         species_id: doc.species_id || null,
       },
-      psmCount,
+      psm_count,
       sequence: {
         protein_id: pid,
         sequence: seq,
