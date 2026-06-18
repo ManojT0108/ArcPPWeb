@@ -1,13 +1,7 @@
 const router = require('express').Router();
 const Protein = require('../model/proteins');
 const Peptide = require('../model/peptides');
-const { MOD_COLORS } = require('../utils/constants');
-
-const canonicalModType = (rawType) => {
-  const normalized = String(rawType || '').trim().toLowerCase();
-  const match = Object.keys(MOD_COLORS).find((k) => k.toLowerCase() === normalized);
-  return match || null;
-};
+const { MOD_COLORS, canonicalModType } = require('../utils/constants');
 
 router.get('/plot/peptide-coverage/:protein_id', async (req, res) => {
   try {
