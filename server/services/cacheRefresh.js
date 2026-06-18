@@ -15,21 +15,9 @@ const Protein = require('../model/proteins');
 const Peptide = require('../model/peptides');
 const { redisClient } = require('./psmRedisService');
 const { speciesSlug } = require('./proteinSummaryCache');
-const { MOD_COLORS, Q_VALUE_THRESHOLD } = require('../utils/constants');
+const { MOD_COLORS, Q_VALUE_THRESHOLD, canonicalModType } = require('../utils/constants');
 const { computeProteinStats, buildSummaryRow } = require('./proteinStats');
-
-const MOD_LOOKUP = Object.keys(MOD_COLORS).reduce((acc, k) => {
-  acc[k.toLowerCase()] = k;
-  return acc;
-}, {});
-
-function canonicalModType(raw) {
-  return MOD_LOOKUP[String(raw || '').trim().toLowerCase()] || null;
-}
-
-function displayId(doc) {
-  return doc.hvo_id || doc.protein_id;
-}
+const { displayId } = require('../utils/displayId');
 
 async function waitFor(label, predicate, { tries = 60, intervalMs = 1000 } = {}) {
   for (let i = 0; i < tries; i++) {

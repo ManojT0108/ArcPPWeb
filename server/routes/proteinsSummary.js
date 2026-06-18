@@ -4,11 +4,7 @@ const Peptide = require('../model/peptides');
 const { searchProteins, getAllProteinSummaries, getProteinSummary } = require('../services/proteinSummaryCache');
 const { computeProteinStats, buildSummaryRow } = require('../services/proteinStats');
 const { speciesToProteinIdFilter } = require('../utils/speciesFilter');
-
-// Return the display ID for a protein doc (hvo_id for HVO, protein_id for others)
-function displayId(doc) {
-  return doc.hvo_id || doc.protein_id;
-}
+const { displayId } = require('../utils/displayId');
 
 router.get('/species/:speciesId/proteins-summary', async (req, res) => {
   const startTime = Date.now();

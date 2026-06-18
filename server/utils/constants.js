@@ -14,4 +14,14 @@ const UNIPROT_RE = /^(?:[A-Z][0-9][A-Z0-9]{3}[0-9]|[A-Z0-9]{10})(?:-\d+)?$/i;
 // it in one place so they can't drift apart.
 const Q_VALUE_THRESHOLD = 0.005;
 
-module.exports = { MOD_COLORS, HVO_RE, UNIPROT_RE, Q_VALUE_THRESHOLD };
+// Case-insensitive map from a modification label to its canonical MOD_COLORS key.
+const MOD_LOOKUP = Object.keys(MOD_COLORS).reduce((acc, k) => {
+  acc[k.toLowerCase()] = k;
+  return acc;
+}, {});
+
+function canonicalModType(raw) {
+  return MOD_LOOKUP[String(raw || '').trim().toLowerCase()] || null;
+}
+
+module.exports = { MOD_COLORS, HVO_RE, UNIPROT_RE, Q_VALUE_THRESHOLD, canonicalModType };

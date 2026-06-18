@@ -5,14 +5,7 @@ const { resolveProteinId } = require('../services/proteinIdResolver');
 const { getProteinPage } = require('../services/psmRedisService');
 const { getPsmsByDataset, getPeptidesByProtein } = require('../services/psmMongoService');
 const { getProteinCoverage } = require('../coverage');
-const { getPlotDataForProtein } = require('../plotGenerator');
-const { MOD_COLORS, HVO_RE, UNIPROT_RE, Q_VALUE_THRESHOLD } = require('../utils/constants');
-
-const canonicalModType = (rawType) => {
-  const normalized = String(rawType || '').trim().toLowerCase();
-  const match = Object.keys(MOD_COLORS).find((k) => k.toLowerCase() === normalized);
-  return match || null;
-};
+const { MOD_COLORS, HVO_RE, UNIPROT_RE, Q_VALUE_THRESHOLD, canonicalModType } = require('../utils/constants');
 
 // Resolve a display ID (hvo_id or protein_id) to a protein document
 async function findProteinByDisplayId(displayId, projection = {}) {
@@ -204,17 +197,6 @@ router.get('/proteins/:protein_id/sequence', async (req, res) => {
   } catch (err) {
     console.error('Sequence endpoint error for', req.params.protein_id, ':', err.message);
     res.status(500).json({ error: 'Failed to fetch sequence data' });
-  }
-});
-
-// Legacy plot-friendly protein data
-router.get('/protein-data/:hvoId', async (req, res) => {
-  try {
-    const plotData = await getPlotDataForProtein(req.params.hvoId);
-    res.json(plotData);
-  } catch (error) {
-    console.error('Error generating plot data:', error.message);
-    res.status(500).json({ error: error.message });
   }
 });
 
@@ -495,23 +477,6 @@ router.get('/proteins/:protein_id/peptides', async (req, res) => {
   } catch (error) {
     console.error('Peptides-by-protein error:', error.message);
     res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Example aggregate (HVO_2072)
-router.get('/peptides/selected-fields', async (req, res) => {
-  try {
-    const objectId = await resolveProteinId('HVO_2072');
-    if (!objectId) return res.status(404).json({ error: 'Protein HVO_2072 not found' });
-
-    const results = await Peptide.aggregate([
-      { $match: { protein_id: objectId } },
-      { $project: { _id: 0, protein_id: 1, modification: 1, sequence: 1, start_index: 1, end_index: 1 } },
-    ]);
-    res.json(results);
-  } catch (err) {
-    console.error('Aggregation error:', err);
-    res.status(500).json({ error: 'Failed to fetch peptides' });
   }
 });
 
