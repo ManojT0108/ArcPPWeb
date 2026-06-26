@@ -344,6 +344,7 @@ router.get('/proteins/:protein_id/features', async (req, res) => {
       const k = `${m.position}|${m.type}`;
       if (modSeen.has(k)) continue;
       modSeen.add(k);
+      const residue = sequence[m.position - 1] || '';
       modFeatures.push({
         accession: `mod-${m.type}-${m.position}`,
         start: m.position,
@@ -351,7 +352,9 @@ router.get('/proteins/:protein_id/features', async (req, res) => {
         color: m.color,
         shape: 'circle',
         type: m.type,
-        tooltipContent: `<strong>${m.type}</strong> modification<br/>Position: ${m.position}`,
+        // Show composition + exact site (residue + position) so the position is
+        // readable from the hover without zooming the ruler (Stefan, 2026-06-23).
+        tooltipContent: `<strong>${m.type}</strong><br/>Position: ${residue}${m.position}`,
       });
     }
 
